@@ -1,21 +1,15 @@
-package main
+package ddllm
 
 import (
-	"errors"
-	"fmt"
 	"github.com/rqlite/sql"
 	"reflect"
 	"strings"
 	"unicode"
 )
 
-type Person struct {
-	ID        int `ddl:"primary"`
-	FirstName string
-	LastName  string
-	Email     string `ddl:"comment='Not validated'"`
-	Age       int
-	Internal  bool `ddl:"-"`
+type BackingStore interface {
+	sql.Visitor
+	Result() []any
 }
 
 type Table struct {
@@ -37,41 +31,40 @@ const (
 type SQLizer struct {
 	Tables      map[string]*Table
 	Permissions uint
+	Backing     BackingStore
 }
 
 func (s *SQLizer) SetPermissions(permissions uint) {
 	s.Permissions = permissions
 }
 
-func (s *SQLizer) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
-	switch t := n.(type) {
-	case *sql.SelectStatement:
-		if s.Permissions&AllowSelectStatements == 0 {
-			return nil, nil, errors.New("ddllm: SelectStatements are not allowed")
-		}
-	case *sql.InsertStatement:
-		if s.Permissions&AllowInsertStatements == 0 {
-			return nil, nil, errors.New("ddllm: InsertStatements are not allowed")
-		}
-	case *sql.UpdateStatement:
-		if s.Permissions&AllowUpdateStatements == 0 {
-			return nil, nil, errors.New("ddllm: UpdateStatements are not allowed")
-		}
-	case *sql.DeleteStatement:
-		if s.Permissions&AllowDeleteStatements == 0 {
-			return nil, nil, errors.New("ddllm: DeleteStatements are not allowed")
-		}
-	case *sql.QualifiedTableName:
-		if table, ok := s.Tables[t.TableName()]; !ok || table == nil {
-			return nil, nil, errors.New("ddllm: Unknown table '" + t.TableName() + "'")
-		}
-	}
-
-	return s, n, nil
+func (s *SQLizer) SetBacking(backing BackingStore) {
+	s.Backing = backing
 }
 
-func (s *SQLizer) VisitEnd(n sql.Node) (sql.Node, error) {
-	return n, nil
+func (s *SQLizer) Execute(statement string) ([]any, error) {
+	parser := sql.NewParser(strings.NewReader(statement))
+	stmt, err := parser.ParseStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	v := &Validator{s: s}
+	n, err := sql.Walk(v, stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.Backing != nil {
+		_, err = sql.Walk(s.Backing, n)
+		if err != nil {
+			return nil, err
+		}
+
+		return s.Backing.Result(), nil
+	}
+
+	return nil, nil
 }
 
 func Initialize(structs ...any) *SQLizer {
@@ -199,77 +192,3 @@ func SQLiteTypeForType(t reflect.Type) string {
 
 	return t.String()
 }
-
-func main() {
-	s := Initialize(&Person{})
-	s.SetPermissions(AllowSelectStatements)
-
-	fmt.Println(s)
-
-	parser := sql.NewParser(strings.NewReader("SELECT * FROM persons WHERE email like '%@aol.com'"))
-	stmt, err := parser.ParseStatement()
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = sql.Walk(s, stmt)
-	if err != nil {
-		panic(err)
-	}
-}
-
-//func main() {
-//	data := Person{
-//		FirstName: "John",
-//		LastName:  "Smith",
-//		Email:     "john@aol.com",
-//		Age:       21,
-//	}
-//
-//	t := reflect.TypeOf(data)
-//
-//	ddl := "create table " + toSnakeCase(pluralize(t.Name())) + "\n(\n"
-//
-//	for i := 0; i < t.NumField(); i++ {
-//		field := t.Field(i)
-//
-//		var row string
-//
-//		row += toSnakeCase(field.Name) + " " + SQLiteTypeForType(field.Type)
-//
-//		var additional []string
-//		needsComma := true
-//
-//		if s := field.Tag.Get("ddl"); s != "" {
-//			parsed := parseTagValue(s)
-//
-//			if _, ok := parsed["omit"]; ok {
-//				continue
-//			}
-//
-//			if _, ok := parsed["primary"]; ok {
-//				needsComma = false
-//				additional = append([]string{"primary key autoincrement,"}, additional...)
-//			}
-//
-//			if c, ok := parsed["comment"]; ok {
-//				additional = append(additional, "-- "+c)
-//			}
-//		}
-//
-//		if needsComma {
-//			row += ", "
-//		} else {
-//			row += " "
-//		}
-//
-//		row += strings.Join(additional, " ")
-//
-//		row += "\n"
-//		ddl += row
-//	}
-//
-//	ddl += ");"
-//
-//	fmt.Println(ddl)
-//}
