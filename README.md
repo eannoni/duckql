@@ -1,4 +1,6 @@
-# Data Description Layer for Language Models (DDLLM)
+# DuckQL
+
+If it looks like a table, and quacks like SQL...
 
 TL;DR: Allow LLMs to interface (safely) with arbitrary data via SQLite syntax
 
@@ -21,7 +23,7 @@ existing APIs or data layers.
 
 ## How it works
 
-First, point `ddllm` at your "schema" structs, and export the resulting DDL to your llm of choice:
+First, point `duckql` at your "schema" structs, and export the resulting DDL to your llm of choice:
 
 ```go
 type User struct {
@@ -33,8 +35,8 @@ type User struct {
 
 ...
 
-s := ddllm.Initialize(&User{})
-s.SetPermissions(ddllm.AllowSelectStatements)
+s := duckql.Initialize(&User{})
+s.SetPermissions(duckql.AllowSelectStatements)
 
 ddl := s.DDL()
 // Should result in:
@@ -52,7 +54,7 @@ In the above snippet, we call `SetPermissions()` to restrict which types of SQL 
 Fields which should not be accessible by an LLM can be marked as private with a 'ddl' tag value of "-".
 Comments can be set via the comment field. These are purely to help the LLM understand the schema.
 
-Construct your prompt with the DDL to explain to the model how it can query information, and have it 
+Construct your prompt with the DDL to explain to the model how it can query information, and have it
 write a query. The next step is running the query against your data. This is done through use of a backing
 store. The blow illustrates a simple "slice filter" backing store for users, and how to use it with
 a query:
@@ -60,7 +62,7 @@ a query:
 ```go
 ...
 
-s.SetBacking(ddllm.NewSliceFilter(
+s.SetBacking(duckql.NewSliceFilter(
     s, []any{
         &User{
             ID: "a",
@@ -71,7 +73,7 @@ s.SetBacking(ddllm.NewSliceFilter(
             ID: "b",
             Email: "b@aol.com",
             Name: "Bob Bert",
-        },  
+        },
     }
 ))
 
@@ -89,7 +91,7 @@ if err != nil {
 // ]
 ```
 
-In the above, `ddllm` will do the following:
+In the above, `duckql` will do the following:
 
 1) Check that users is a valid table that it knows about
 2) Check that the "name" field is valid on the users table
@@ -104,5 +106,3 @@ TODO
 ## Examples
 
 TODO
-
-

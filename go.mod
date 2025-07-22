@@ -1,4 +1,4 @@
-module ddllm
+module github.com/dburkart/duckql
 
 go 1.23
 

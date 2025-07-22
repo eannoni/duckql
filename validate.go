@@ -1,4 +1,4 @@
-package ddllm
+package duckql
 
 import (
 	"errors"
@@ -16,26 +16,26 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	switch t := n.(type) {
 	case *sql.SelectStatement:
 		if v.s.Permissions&AllowSelectStatements == 0 {
-			return nil, nil, errors.New("ddllm: SelectStatements are not allowed")
+			return nil, nil, errors.New("duckql: SelectStatements are not allowed")
 		}
 	case *sql.InsertStatement:
 		if v.s.Permissions&AllowInsertStatements == 0 {
-			return nil, nil, errors.New("ddllm: InsertStatements are not allowed")
+			return nil, nil, errors.New("duckql: InsertStatements are not allowed")
 		}
 	case *sql.UpdateStatement:
 		if v.s.Permissions&AllowUpdateStatements == 0 {
-			return nil, nil, errors.New("ddllm: UpdateStatements are not allowed")
+			return nil, nil, errors.New("duckql: UpdateStatements are not allowed")
 		}
 	case *sql.DeleteStatement:
 		if v.s.Permissions&AllowDeleteStatements == 0 {
-			return nil, nil, errors.New("ddllm: DeleteStatements are not allowed")
+			return nil, nil, errors.New("duckql: DeleteStatements are not allowed")
 		}
 	case *sql.QualifiedTableName:
 		var table *Table
 		var ok bool
 
 		if table, ok = v.s.Tables[t.TableName()]; !ok || table == nil {
-			return nil, nil, errors.New("ddllm: Unknown table '" + t.TableName() + "'")
+			return nil, nil, errors.New("duckql: Unknown table '" + t.TableName() + "'")
 		}
 
 		// Validate all columns
@@ -45,7 +45,7 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			}
 
 			if _, ok = table.ColumnMappings[column]; !ok {
-				return nil, nil, errors.New("ddllm: Unknown column '" + column + "' for table '" + t.TableName() + "'")
+				return nil, nil, errors.New("duckql: Unknown column '" + column + "' for table '" + t.TableName() + "'")
 			}
 		}
 	case *sql.ResultColumn:

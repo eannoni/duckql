@@ -1,4 +1,4 @@
-package ddllm
+package duckql
 
 import (
 	"reflect"

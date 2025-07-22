@@ -1,9 +1,10 @@
 package main
 
 import (
-	"ddllm"
 	"encoding/json"
 	"fmt"
+
+	"github.com/dburkart/duckql"
 )
 
 type Organization struct {
@@ -46,9 +47,9 @@ func main() {
 		},
 	}
 
-	s := ddllm.Initialize(&Organization{}, &Account{})
-	s.SetPermissions(ddllm.AllowSelectStatements)
-	s.SetBacking(ddllm.NewSliceFilter(
+	s := duckql.Initialize(&Organization{}, &Account{})
+	s.SetPermissions(duckql.AllowSelectStatements)
+	s.SetBacking(duckql.NewSliceFilter(
 		s, people,
 	))
 
