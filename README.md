@@ -1,3 +1,7 @@
+<p align="center">
+   <img width="300" height="300" alt="platypus" src="https://github.com/user-attachments/assets/bb4f5aff-c1fa-4e85-ba03-8235a883df02" />
+</p>
+
 # DuckQL
 
 If it looks like a table, and quacks like SQL...
