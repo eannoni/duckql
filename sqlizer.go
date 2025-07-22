@@ -73,10 +73,17 @@ func (s *SQLizer) Execute(statement string) (ResultRows, error) {
 
 		rows := s.Backing.Rows()
 
-		if len(s.AggregateFunctions) > 0 {
-			for _, aggregate := range s.AggregateFunctions {
-				rows = aggregate.Call(rows)
+		if len(rows) > 0 && len(s.AggregateFunctions) > 0 {
+			var result ResultRows
+			for idx, aggregate := range s.AggregateFunctions {
+				r := aggregate.Call(rows)
+				if idx == 0 {
+					result = append(result, r[0])
+				} else {
+					result[0][aggregate.ResultPosition] = r[0][aggregate.ResultPosition]
+				}
 			}
+			rows = result
 		}
 
 		return rows, nil

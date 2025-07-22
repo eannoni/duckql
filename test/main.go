@@ -52,7 +52,7 @@ func main() {
 		s, people,
 	))
 
-	query := "select sum(age), email from accounts"
+	query := "select min(age), first_name, last_name from accounts"
 
 	result, err := s.Execute(query)
 	if err != nil {
