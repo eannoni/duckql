@@ -94,6 +94,12 @@ func Initialize(structs ...any) *SQLizer {
 			columnType := SQLiteTypeForType(field.Type)
 			columnComment := ""
 
+			if columnType == "unknown" {
+				if field.Type.Kind() == reflect.Slice {
+
+				}
+			}
+
 			if tag := field.Tag.Get("ddl"); tag != "" {
 				parsed := parseTagValue(tag)
 
@@ -159,7 +165,7 @@ func toSnakeCase(s string) string {
 
 	for idx, r := range s {
 		if unicode.IsUpper(r) {
-			if idx > 0 {
+			if idx > 0 && (idx-2 < 0 || snakeCase[len(snakeCase)-2] != '_') {
 				snakeCase += "_"
 			}
 		}
@@ -218,5 +224,5 @@ func SQLiteTypeForType(t reflect.Type) string {
 		return "REAL"
 	}
 
-	return t.String()
+	return "unknown"
 }
