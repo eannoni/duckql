@@ -52,7 +52,7 @@ func main() {
 		s, people,
 	))
 
-	query := "select age from accounts"
+	query := "select * from accounts"
 
 	result, err := s.Execute(query)
 	if err != nil {

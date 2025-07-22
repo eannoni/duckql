@@ -167,63 +167,69 @@ func (s *SQLizer) Matches(filter sql.Node, data any) bool {
 	return false
 }
 
+func (s *SQLizer) addStructTable(str any) {
+	var table Table
+
+	table.ColumnMappings = make(map[string]ColumnMapping)
+
+	t := reflect.TypeOf(str)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	table.Name = toSnakeCase(pluralize(t.Name()))
+	table.StructName = t.Name()
+
+	if _, ok := s.Tables[table.Name]; ok {
+		return
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		columnName := toSnakeCase(field.Name)
+		columnType := sqliteTypeForGoType(field.Type)
+		columnComment := ""
+
+		if columnType == "unknown" {
+			continue
+		}
+
+		if tag := field.Tag.Get("ddl"); tag != "" {
+			parsed := parseTagValue(tag)
+
+			if _, ok := parsed["omit"]; ok {
+				continue
+			}
+
+			if _, ok := parsed["primary"]; ok {
+				columnType += " primary key autoincrement"
+			}
+
+			if c, ok := parsed["comment"]; ok {
+				columnComment = c
+			}
+		}
+
+		table.Columns = append(table.Columns, columnName)
+		table.ColumnMappings[columnName] = ColumnMapping{
+			Name:       columnName,
+			GoField:    field.Name,
+			SQLType:    columnType,
+			SQLComment: columnComment,
+		}
+	}
+
+	s.Tables[table.Name] = &table
+}
+
 func Initialize(structs ...any) *SQLizer {
 	var sql SQLizer
 	sql.Tables = make(map[string]*Table)
 
 	for _, s := range structs {
-		var table Table
-
-		table.ColumnMappings = make(map[string]ColumnMapping)
-
-		t := reflect.TypeOf(s)
-
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-
-		table.Name = toSnakeCase(pluralize(t.Name()))
-		table.StructName = t.Name()
-
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-
-			columnName := toSnakeCase(field.Name)
-			columnType := sqliteTypeForGoType(field.Type)
-			columnComment := ""
-
-			if columnType == "unknown" {
-				if field.Type.Kind() == reflect.Slice {
-
-				}
-			}
-
-			if tag := field.Tag.Get("ddl"); tag != "" {
-				parsed := parseTagValue(tag)
-
-				if _, ok := parsed["omit"]; ok {
-					continue
-				}
-
-				if _, ok := parsed["primary"]; ok {
-					columnType += " primary key autoincrement"
-				}
-
-				if c, ok := parsed["comment"]; ok {
-					columnComment = c
-				}
-			}
-
-			table.Columns = append(table.Columns, columnName)
-			table.ColumnMappings[columnName] = ColumnMapping{
-				Name:       columnName,
-				GoField:    field.Name,
-				SQLType:    columnType,
-				SQLComment: columnComment,
-			}
-		}
-
-		sql.Tables[table.Name] = &table
+		sql.addStructTable(s)
 	}
 
 	return &sql
