@@ -14,11 +14,47 @@ type SliceFilter struct {
 
 	tables        map[string]*Table
 	resultColumns []string
-	filter        []sql.Node
+	filter        sql.Node
 }
 
 func (f *SliceFilter) valueOf(n sql.Node, v reflect.Value, table *Table) reflect.Value {
 	switch t := n.(type) {
+	case *sql.BinaryExpr:
+		x := f.valueOf(t.X, v, table)
+		y := f.valueOf(t.Y, v, table)
+
+		switch t.Op {
+		case sql.AND:
+			return reflect.ValueOf(x.Bool() && y.Bool())
+		case sql.OR:
+			return reflect.ValueOf(x.Bool() || y.Bool())
+		case sql.EQ:
+			return reflect.ValueOf(reflect.DeepEqual(x.Interface(), y.Interface()))
+		case sql.NE:
+			return reflect.ValueOf(!reflect.DeepEqual(x.Interface(), y.Interface()))
+		case sql.GT:
+			return reflect.ValueOf(x.Int() > y.Int())
+		case sql.GE:
+			return reflect.ValueOf(x.Int() >= y.Int())
+		case sql.LT:
+			return reflect.ValueOf(x.Int() < y.Int())
+		case sql.LE:
+			return reflect.ValueOf(x.Int() <= y.Int())
+		case sql.LIKE:
+			match := strings.ReplaceAll(y.String(), "%", ".*")
+			matched, err := regexp.MatchString(match, x.String())
+			if err != nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(matched)
+		case sql.NOTLIKE:
+			match := strings.ReplaceAll(y.String(), "%", ".*")
+			matched, err := regexp.MatchString(match, x.String())
+			if err != nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(!matched)
+		}
 	case *sql.NumberLit:
 		i, err := strconv.Atoi(t.Value)
 		if err != nil {
@@ -33,38 +69,17 @@ func (f *SliceFilter) valueOf(n sql.Node, v reflect.Value, table *Table) reflect
 	default:
 		panic("unhandled type: " + reflect.TypeOf(n).String())
 	}
+	return reflect.ValueOf(false)
 }
 
 func (f *SliceFilter) matches(v reflect.Value, table *Table) bool {
-	for _, filter := range f.filter {
-		switch t := filter.(type) {
-		case *sql.BinaryExpr:
-			x := f.valueOf(t.X, v, table)
-			y := f.valueOf(t.Y, v, table)
+	if f.filter == nil {
+		return true
+	}
 
-			switch t.Op {
-			case sql.EQ:
-				return reflect.DeepEqual(x.Interface(), y.Interface())
-			case sql.NE:
-				return !reflect.DeepEqual(x.Interface(), y.Interface())
-			case sql.GT:
-				return x.Int() > y.Int()
-			case sql.LIKE:
-				match := strings.ReplaceAll(y.String(), "%", ".*")
-				matched, err := regexp.MatchString(match, x.String())
-				if err != nil {
-					return false
-				}
-				return matched
-			case sql.NOTLIKE:
-				match := strings.ReplaceAll(y.String(), "%", ".*")
-				matched, err := regexp.MatchString(match, x.String())
-				if err != nil {
-					return false
-				}
-				return !matched
-			}
-		}
+	value := f.valueOf(f.filter, v, table)
+	if value.Kind() == reflect.Bool {
+		return value.Bool()
 	}
 
 	return false
@@ -119,8 +134,6 @@ func (f *SliceFilter) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	}
 
 	switch t := n.(type) {
-	case *sql.BinaryExpr:
-		f.filter = append(f.filter, t)
 	case *sql.QualifiedTableName:
 		f.tables[f.s.Tables[t.TableName()].StructName] = f.s.Tables[t.TableName()]
 	case *sql.ResultColumn:
@@ -136,6 +149,10 @@ func (f *SliceFilter) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 }
 
 func (f *SliceFilter) VisitEnd(n sql.Node) (sql.Node, error) {
+	switch t := n.(type) {
+	case *sql.UnaryExpr, *sql.BinaryExpr:
+		f.filter = t
+	}
 	return n, nil
 }
 
