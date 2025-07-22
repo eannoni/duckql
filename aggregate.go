@@ -23,6 +23,8 @@ var functionMap = map[string]AggregateFunction{
 	"count": countRows,
 	"max":   maxOfColumn,
 	"min":   minOfColumn,
+	"sum":   sumOfColumn,
+	"total": sumOfColumn,
 }
 
 func averageOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
@@ -146,6 +148,41 @@ func minOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
 
 	return ResultRows{
 		minRow,
+	}
+}
+
+func sumOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
+	var sum reflect.Value
+	var sumRow ResultRow
+
+	for _, row := range rows {
+		for _, column := range row {
+			if column.Name == c.UnderlyingColumn {
+				if !sum.IsValid() {
+					sum = column.Value
+					goto nextRow
+				} else {
+					switch column.Value.Kind() {
+					case reflect.Float32, reflect.Float64:
+						sum = reflect.ValueOf(sum.Float() + column.Value.Float())
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						sum = reflect.ValueOf(sum.Int() + column.Value.Int())
+					}
+					goto nextRow
+				}
+			}
+		}
+	nextRow:
+	}
+
+	sumRow = rows[len(rows)-1]
+	sumRow[c.ResultPosition] = ResultValue{
+		Name:  "sum",
+		Value: sum,
+	}
+
+	return ResultRows{
+		sumRow,
 	}
 }
 
