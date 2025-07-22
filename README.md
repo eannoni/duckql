@@ -86,13 +86,9 @@ if err != nil {
     panic(err)
 }
 
-// result = [
-//    &User{
-//       ID: "",
-//       Email: "",
-//       Name: "Bob Bert",
-//    }
-// ]
+fmt.Println(result.String())
+
+// Bob Bert
 ```
 
 In the above, `duckql` will do the following:

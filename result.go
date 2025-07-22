@@ -25,7 +25,7 @@ func (r *ResultRow) String() string {
 	var s strings.Builder
 	for i, v := range *r {
 		if i > 0 {
-			s.WriteString(", ")
+			s.WriteString("|")
 		}
 		switch v.Kind() {
 		case reflect.Bool:
@@ -37,7 +37,7 @@ func (r *ResultRow) String() string {
 		case reflect.Float32, reflect.Float64:
 			s.WriteString(fmt.Sprintf("%f", v.Float()))
 		case reflect.String:
-			s.WriteString(fmt.Sprintf("%q", v.String()))
+			s.WriteString(fmt.Sprintf("%s", v.String()))
 		default:
 			s.WriteString(fmt.Sprintf("%v", v.Interface()))
 		}
