@@ -54,6 +54,17 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			s = x
 		}
 
+		f := ParseAggregateFunction(s)
+		if f != nil {
+			v.s.AggregateFunctions = append(v.s.AggregateFunctions, f)
+			s = f.UnderlyingColumn
+			n = &sql.ResultColumn{
+				Expr: &sql.StringLit{
+					Value: s,
+				},
+			}
+		}
+
 		v.columns = append(v.columns, s)
 	}
 

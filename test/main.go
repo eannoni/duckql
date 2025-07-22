@@ -52,7 +52,7 @@ func main() {
 		s, people,
 	))
 
-	query := "select first_name, last_name, email from accounts"
+	query := "select count(*) from accounts"
 
 	result, err := s.Execute(query)
 	if err != nil {
