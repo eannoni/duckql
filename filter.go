@@ -19,38 +19,29 @@ type SliceFilter struct {
 func (f *SliceFilter) Result() []any {
 	var r []any
 	for _, d := range f.data {
-		t := reflect.TypeOf(d)
-
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
+		if !f.s.Matches(f.filter, d) {
+			continue
 		}
 
+		t := f.s.TypeForData(d)
+		x := f.s.TableForData(d)
+		n := reflect.New(t)
 		v := reflect.ValueOf(d)
 
-		if x, ok := f.tables[t.Name()]; ok {
-			if !f.s.Matches(f.filter, v, x) {
+		for _, column := range f.resultColumns {
+			if column == "*" {
+				for _, tableColumn := range x.Columns {
+					n.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField).Set(v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField))
+				}
 				continue
 			}
 
-			n := reflect.New(t)
-
-			for _, column := range f.resultColumns {
-				if column == "*" {
-					for _, tableColumn := range x.Columns {
-						n.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField).Set(v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField))
-					}
-					continue
-				}
-
-				if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
-					n.Elem().FieldByName(field.Name).Set(v.Elem().FieldByName(field.Name))
-				}
+			if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
+				n.Elem().FieldByName(field.Name).Set(v.Elem().FieldByName(field.Name))
 			}
-
-			r = append(r, n.Interface())
-		} else {
-			continue
 		}
+
+		r = append(r, n.Interface())
 	}
 
 	f.tables = make(map[string]*Table)

@@ -75,6 +75,26 @@ func (s *SQLizer) Execute(statement string) ([]any, error) {
 	return nil, nil
 }
 
+func (s *SQLizer) TypeForData(data any) reflect.Type {
+	t := reflect.TypeOf(data)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	return t
+}
+
+func (s *SQLizer) TableForData(data any) *Table {
+	t := s.TypeForData(data)
+
+	if x, ok := s.Tables[toSnakeCase(pluralize(t.Name()))]; ok {
+		return x
+	}
+
+	return nil
+}
+
 func (s *SQLizer) valueOf(n sql.Node, v reflect.Value, mappings map[string]ColumnMapping) reflect.Value {
 	switch t := n.(type) {
 	case *sql.BinaryExpr:
@@ -129,12 +149,17 @@ func (s *SQLizer) valueOf(n sql.Node, v reflect.Value, mappings map[string]Colum
 	return reflect.ValueOf(false)
 }
 
-func (s *SQLizer) Matches(filter sql.Node, v reflect.Value, table *Table) bool {
+func (s *SQLizer) Matches(filter sql.Node, data any) bool {
+	table := s.TableForData(data)
+	if table == nil {
+		return false
+	}
+
 	if filter == nil {
 		return true
 	}
 
-	value := s.valueOf(filter, v, table.ColumnMappings)
+	value := s.valueOf(filter, reflect.ValueOf(data), table.ColumnMappings)
 	if value.Kind() == reflect.Bool {
 		return value.Bool()
 	}
