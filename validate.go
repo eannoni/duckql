@@ -59,8 +59,9 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			v.s.AggregateFunctions = append(v.s.AggregateFunctions, f)
 			s = f.UnderlyingColumn
 			n = &sql.ResultColumn{
-				Expr: &sql.StringLit{
-					Value: s,
+				Expr: &sql.Ident{
+					Name:   s,
+					Quoted: false,
 				},
 			}
 		}

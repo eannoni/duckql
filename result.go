@@ -46,6 +46,6 @@ func (r *ResultRow) String() string {
 }
 
 type ResultValue struct {
-	Column string
-	Value  reflect.Value
+	Name  string
+	Value reflect.Value
 }

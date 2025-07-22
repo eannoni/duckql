@@ -32,13 +32,13 @@ func (f *SliceFilter) Rows() ResultRows {
 		for _, column := range f.resultColumns {
 			if column == "*" {
 				for _, tableColumn := range x.Columns {
-					result = append(result, ResultValue{Column: column, Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
+					result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
 				}
 				continue
 			}
 
 			if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
-				result = append(result, ResultValue{Column: column, Value: v.Elem().FieldByName(field.Name)})
+				result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(field.Name)})
 			}
 		}
 
