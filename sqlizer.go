@@ -122,6 +122,34 @@ func Initialize(structs ...any) *SQLizer {
 	return &sql
 }
 
+func (s *SQLizer) DDL() string {
+	var sql strings.Builder
+
+	for _, v := range s.Tables {
+		sql.WriteString("create table ")
+		sql.WriteString(v.Name)
+		sql.WriteString("\n(\n")
+
+		for idx, column := range v.Columns {
+			sql.WriteString("  " + column + " " + v.ColumnTypes[column])
+
+			if idx < len(v.Columns)-1 {
+				sql.WriteString(",")
+			}
+
+			if comment, ok := v.ColumnComments[column]; comment != "" && ok {
+				sql.WriteString("  -- " + comment)
+			}
+
+			sql.WriteString("\n")
+		}
+
+		sql.WriteString(")\n")
+	}
+
+	return sql.String()
+}
+
 func toSnakeCase(s string) string {
 	var snakeCase string
 
