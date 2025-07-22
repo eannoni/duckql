@@ -2,9 +2,7 @@ package ddllm
 
 import (
 	"reflect"
-	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/rqlite/sql"
 )
@@ -16,73 +14,6 @@ type SliceFilter struct {
 	tables        map[string]*Table
 	resultColumns []string
 	filter        sql.Node
-}
-
-func (f *SliceFilter) valueOf(n sql.Node, v reflect.Value, mappings map[string]ColumnMapping) reflect.Value {
-	switch t := n.(type) {
-	case *sql.BinaryExpr:
-		x := f.valueOf(t.X, v, mappings)
-		y := f.valueOf(t.Y, v, mappings)
-
-		switch t.Op {
-		case sql.AND:
-			return reflect.ValueOf(x.Bool() && y.Bool())
-		case sql.OR:
-			return reflect.ValueOf(x.Bool() || y.Bool())
-		case sql.EQ:
-			return reflect.ValueOf(reflect.DeepEqual(x.Interface(), y.Interface()))
-		case sql.NE:
-			return reflect.ValueOf(!reflect.DeepEqual(x.Interface(), y.Interface()))
-		case sql.GT:
-			return reflect.ValueOf(x.Int() > y.Int())
-		case sql.GE:
-			return reflect.ValueOf(x.Int() >= y.Int())
-		case sql.LT:
-			return reflect.ValueOf(x.Int() < y.Int())
-		case sql.LE:
-			return reflect.ValueOf(x.Int() <= y.Int())
-		case sql.LIKE:
-			match := strings.ReplaceAll(y.String(), "%", ".*")
-			matched, err := regexp.MatchString(match, x.String())
-			if err != nil {
-				return reflect.ValueOf(false)
-			}
-			return reflect.ValueOf(matched)
-		case sql.NOTLIKE:
-			match := strings.ReplaceAll(y.String(), "%", ".*")
-			matched, err := regexp.MatchString(match, x.String())
-			if err != nil {
-				return reflect.ValueOf(false)
-			}
-			return reflect.ValueOf(!matched)
-		}
-	case *sql.NumberLit:
-		i, err := strconv.Atoi(t.Value)
-		if err != nil {
-			panic(err)
-		}
-		return reflect.ValueOf(i)
-	case *sql.StringLit:
-		return reflect.ValueOf(t.Value)
-	case *sql.Ident:
-		return v.Elem().FieldByName(mappings[t.Name].GoField)
-	default:
-		panic("unhandled type: " + reflect.TypeOf(n).String())
-	}
-	return reflect.ValueOf(false)
-}
-
-func (f *SliceFilter) matches(v reflect.Value, table *Table) bool {
-	if f.filter == nil {
-		return true
-	}
-
-	value := f.valueOf(f.filter, v, table.ColumnMappings)
-	if value.Kind() == reflect.Bool {
-		return value.Bool()
-	}
-
-	return false
 }
 
 func (f *SliceFilter) Result() []any {
@@ -97,7 +28,7 @@ func (f *SliceFilter) Result() []any {
 		v := reflect.ValueOf(d)
 
 		if x, ok := f.tables[t.Name()]; ok {
-			if !f.matches(v, x) {
+			if !f.s.Matches(f.filter, v, x) {
 				continue
 			}
 
