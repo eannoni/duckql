@@ -8,6 +8,7 @@ import (
 
 type AggregateFunctionColumn struct {
 	UnderlyingColumn string
+	ResultPosition   int
 	Function         AggregateFunction
 }
 
@@ -45,8 +46,11 @@ func averageOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 					sum += float64(column.Value.Int())
 				}
+				goto nextRow
 			}
 		}
+
+	nextRow:
 	}
 
 	return ResultRows{

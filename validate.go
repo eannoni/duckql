@@ -56,6 +56,7 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 
 		f := ParseAggregateFunction(s)
 		if f != nil {
+			f.ResultPosition = len(v.columns)
 			v.s.AggregateFunctions = append(v.s.AggregateFunctions, f)
 			s = f.UnderlyingColumn
 			n = &sql.ResultColumn{
