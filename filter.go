@@ -16,8 +16,8 @@ type SliceFilter struct {
 	filter        sql.Node
 }
 
-func (f *SliceFilter) Result() []any {
-	var r []any
+func (f *SliceFilter) Rows() ResultRows {
+	var r ResultRows
 	for _, d := range f.data {
 		if !f.s.Matches(f.filter, d) {
 			continue
@@ -25,23 +25,24 @@ func (f *SliceFilter) Result() []any {
 
 		t := f.s.TypeForData(d)
 		x := f.s.TableForData(d)
-		n := reflect.New(t)
 		v := reflect.ValueOf(d)
+
+		result := ResultRow{}
 
 		for _, column := range f.resultColumns {
 			if column == "*" {
 				for _, tableColumn := range x.Columns {
-					n.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField).Set(v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField))
+					result = append(result, v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField))
 				}
 				continue
 			}
 
 			if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
-				n.Elem().FieldByName(field.Name).Set(v.Elem().FieldByName(field.Name))
+				result = append(result, v.Elem().FieldByName(field.Name))
 			}
 		}
 
-		r = append(r, n.Interface())
+		r = append(r, result)
 	}
 
 	f.tables = make(map[string]*Table)

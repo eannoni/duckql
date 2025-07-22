@@ -12,7 +12,7 @@ import (
 
 type BackingStore interface {
 	sql.Visitor
-	Result() []any
+	Rows() ResultRows
 }
 
 type ColumnMapping struct {
@@ -51,7 +51,7 @@ func (s *SQLizer) SetBacking(backing BackingStore) {
 	s.Backing = backing
 }
 
-func (s *SQLizer) Execute(statement string) ([]any, error) {
+func (s *SQLizer) Execute(statement string) (ResultRows, error) {
 	parser := sql.NewParser(strings.NewReader(statement))
 	stmt, err := parser.ParseStatement()
 	if err != nil {
@@ -70,7 +70,7 @@ func (s *SQLizer) Execute(statement string) ([]any, error) {
 			return nil, err
 		}
 
-		return s.Backing.Result(), nil
+		return s.Backing.Rows(), nil
 	}
 
 	return nil, nil

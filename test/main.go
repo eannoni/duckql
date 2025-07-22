@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/dburkart/duckql"
@@ -53,7 +52,7 @@ func main() {
 		s, people,
 	))
 
-	query := "select * from accounts"
+	query := "select first_name, last_name, email from accounts"
 
 	result, err := s.Execute(query)
 	if err != nil {
@@ -67,10 +66,6 @@ func main() {
 	fmt.Println("Query:", query)
 	fmt.Println()
 
-	b, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(b))
+	fmt.Println("Results")
+	fmt.Println(result.String())
 }
