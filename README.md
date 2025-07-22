@@ -1,4 +1,4 @@
-# Data Description Language for Language Models (DDLLM)
+# Data Description Layer for Language Models (DDLLM)
 
 TL;DR: Allow LLMs to interface (safely) with arbitrary data via SQLite syntax
 
