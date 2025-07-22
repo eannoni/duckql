@@ -52,7 +52,7 @@ func main() {
 		s, people,
 	))
 
-	query := "select avg(age), count(age) from accounts"
+	query := "select avg(age), email from accounts"
 
 	result, err := s.Execute(query)
 	if err != nil {

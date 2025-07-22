@@ -19,19 +19,10 @@ func (a *AggregateFunctionColumn) Call(rows ResultRows) ResultRows {
 type AggregateFunction func(*AggregateFunctionColumn, ResultRows) ResultRows
 
 var functionMap = map[string]AggregateFunction{
-	"count": countRows,
 	"avg":   averageOfColumn,
-}
-
-func countRows(_ *AggregateFunctionColumn, rows ResultRows) ResultRows {
-	return ResultRows{
-		ResultRow{
-			{
-				Name:  "count",
-				Value: reflect.ValueOf(len(rows)),
-			},
-		},
-	}
+	"count": countRows,
+	"max":   maxOfColumn,
+	"min":   minOfColumn,
 }
 
 func averageOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
@@ -53,20 +44,115 @@ func averageOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
 	nextRow:
 	}
 
+	resultRow := rows[len(rows)-1]
+	resultRow[c.ResultPosition] = ResultValue{
+		Name:  "average",
+		Value: reflect.ValueOf(sum / float64(len(rows))),
+	}
+
 	return ResultRows{
-		ResultRow{
-			{
-				Name:  "average",
-				Value: reflect.ValueOf(sum / float64(len(rows))),
-			},
-		},
+		resultRow,
+	}
+}
+
+func countRows(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
+	resultRow := rows[len(rows)-1]
+	resultRow[c.ResultPosition] = ResultValue{
+		Name:  "count",
+		Value: reflect.ValueOf(len(rows)),
+	}
+
+	return ResultRows{
+		resultRow,
+	}
+}
+
+func maxOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
+	var max reflect.Value
+	var maxRow ResultRow
+
+	for _, row := range rows {
+		for _, column := range row {
+			if column.Name == c.UnderlyingColumn {
+				if !max.IsValid() {
+					max = column.Value
+					maxRow = row
+					goto nextRow
+				} else {
+					switch column.Value.Kind() {
+					case reflect.Float32, reflect.Float64:
+						if column.Value.Float() > max.Float() {
+							max = column.Value
+							maxRow = row
+						}
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						if column.Value.Int() > max.Int() {
+							max = column.Value
+							maxRow = row
+						}
+					case reflect.String:
+						if column.Value.String() > max.String() {
+							max = column.Value
+							maxRow = row
+						}
+					}
+					goto nextRow
+				}
+			}
+		}
+	nextRow:
+	}
+
+	return ResultRows{
+		maxRow,
+	}
+}
+
+func minOfColumn(c *AggregateFunctionColumn, rows ResultRows) ResultRows {
+	var min reflect.Value
+	var minRow ResultRow
+
+	for _, row := range rows {
+		for _, column := range row {
+			if column.Name == c.UnderlyingColumn {
+				if !min.IsValid() {
+					min = column.Value
+					minRow = row
+					goto nextRow
+				} else {
+					switch column.Value.Kind() {
+					case reflect.Float32, reflect.Float64:
+						if column.Value.Float() < min.Float() {
+							min = column.Value
+							minRow = row
+						}
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						if column.Value.Int() < min.Int() {
+							min = column.Value
+							minRow = row
+						}
+					case reflect.String:
+						if column.Value.String() < min.String() {
+							min = column.Value
+							minRow = row
+						}
+					}
+					goto nextRow
+				}
+			}
+		}
+	nextRow:
+	}
+
+	return ResultRows{
+		minRow,
 	}
 }
 
 func ParseAggregateFunction(text string) *AggregateFunctionColumn {
 	var column AggregateFunctionColumn
-
 	var current strings.Builder
+
 	for _, r := range text {
 		switch r {
 		case '(':
