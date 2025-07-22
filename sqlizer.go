@@ -27,6 +27,7 @@ type Table struct {
 	StructName     string
 	Columns        []string
 	ColumnMappings map[string]ColumnMapping
+	ForeignKeys    map[string]*Table
 }
 
 const (
@@ -171,17 +172,37 @@ func (s *SQLizer) addStructTable(str any) {
 	var table Table
 
 	table.ColumnMappings = make(map[string]ColumnMapping)
+	table.ForeignKeys = make(map[string]*Table)
 
-	t := reflect.TypeOf(str)
+	var t reflect.Type
+	if _, ok := str.(reflect.Type); !ok {
+		t = reflect.TypeOf(str)
 
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
+	} else {
+		t = str.(reflect.Type)
 	}
 
 	table.Name = toSnakeCase(pluralize(t.Name()))
 	table.StructName = t.Name()
 
-	if _, ok := s.Tables[table.Name]; ok {
+	if x, ok := s.Tables[table.Name]; ok {
+		// Check for any foreign keys
+		for name, mapping := range x.ColumnMappings {
+			if !strings.HasSuffix(name, "_id") {
+				continue
+			}
+
+			possibleTableName := pluralize(name[:len(name)-3])
+			if foreign, ok := s.Tables[possibleTableName]; ok {
+				// Ensure that the type matches up
+				if strings.HasPrefix(foreign.ColumnMappings["id"].SQLType, mapping.SQLType) {
+					x.ForeignKeys[name] = foreign
+				}
+			}
+		}
 		return
 	}
 
@@ -193,6 +214,9 @@ func (s *SQLizer) addStructTable(str any) {
 		columnComment := ""
 
 		if columnType == "unknown" {
+			if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() == reflect.Struct {
+				s.addStructTable(field.Type.Elem())
+			}
 			continue
 		}
 
@@ -239,7 +263,7 @@ func (s *SQLizer) DDL() string {
 	var sql strings.Builder
 
 	for _, v := range s.Tables {
-		sql.WriteString("create table ")
+		sql.WriteString("CREATE TABLE ")
 		sql.WriteString(v.Name)
 		sql.WriteString("\n(\n")
 
@@ -259,7 +283,11 @@ func (s *SQLizer) DDL() string {
 			sql.WriteString("\n")
 		}
 
-		sql.WriteString(")\n")
+		for key, table := range v.ForeignKeys {
+			sql.WriteString("  FOREIGN KEY (" + key + ") REFERENCES " + table.Name + "(id)\n")
+		}
+
+		sql.WriteString(")\n\n")
 	}
 
 	return sql.String()
