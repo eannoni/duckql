@@ -52,7 +52,7 @@ func main() {
 		s, people,
 	))
 
-	query := "select * from accounts where email like '%aol.com' and age >= 18"
+	query := "select age from accounts"
 
 	result, err := s.Execute(query)
 	if err != nil {

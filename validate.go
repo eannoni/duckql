@@ -2,8 +2,9 @@ package ddllm
 
 import (
 	"errors"
-	"github.com/rqlite/sql"
 	"strconv"
+
+	"github.com/rqlite/sql"
 )
 
 type Validator struct {
@@ -43,7 +44,7 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 				continue
 			}
 
-			if _, ok = table.ColumnTypes[column]; !ok {
+			if _, ok = table.ColumnMappings[column]; !ok {
 				return nil, nil, errors.New("ddllm: Unknown column '" + column + "' for table '" + t.TableName() + "'")
 			}
 		}

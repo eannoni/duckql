@@ -1,10 +1,11 @@
 package ddllm
 
 import (
-	"github.com/rqlite/sql"
 	"reflect"
 	"strings"
 	"unicode"
+
+	"github.com/rqlite/sql"
 )
 
 type BackingStore interface {
@@ -12,13 +13,18 @@ type BackingStore interface {
 	Result() []any
 }
 
+type ColumnMapping struct {
+	Name       string
+	GoField    string
+	SQLType    string
+	SQLComment string
+}
+
 type Table struct {
-	Name               string
-	StructName         string
-	Columns            []string
-	ColumnStructFields map[string]string
-	ColumnTypes        map[string]string
-	ColumnComments     map[string]string
+	Name           string
+	StructName     string
+	Columns        []string
+	ColumnMappings map[string]ColumnMapping
 }
 
 const (
@@ -74,9 +80,7 @@ func Initialize(structs ...any) *SQLizer {
 	for _, s := range structs {
 		var table Table
 
-		table.ColumnStructFields = make(map[string]string)
-		table.ColumnTypes = make(map[string]string)
-		table.ColumnComments = make(map[string]string)
+		table.ColumnMappings = make(map[string]ColumnMapping)
 
 		t := reflect.TypeOf(s)
 
@@ -91,7 +95,7 @@ func Initialize(structs ...any) *SQLizer {
 			field := t.Field(i)
 
 			columnName := toSnakeCase(field.Name)
-			columnType := SQLiteTypeForType(field.Type)
+			columnType := sqliteTypeForGoType(field.Type)
 			columnComment := ""
 
 			if columnType == "unknown" {
@@ -117,9 +121,12 @@ func Initialize(structs ...any) *SQLizer {
 			}
 
 			table.Columns = append(table.Columns, columnName)
-			table.ColumnStructFields[columnName] = field.Name
-			table.ColumnTypes[columnName] = columnType
-			table.ColumnComments[columnName] = columnComment
+			table.ColumnMappings[columnName] = ColumnMapping{
+				Name:       columnName,
+				GoField:    field.Name,
+				SQLType:    columnType,
+				SQLComment: columnComment,
+			}
 		}
 
 		sql.Tables[table.Name] = &table
@@ -137,14 +144,16 @@ func (s *SQLizer) DDL() string {
 		sql.WriteString("\n(\n")
 
 		for idx, column := range v.Columns {
-			sql.WriteString("  " + column + " " + v.ColumnTypes[column])
+			mapping := v.ColumnMappings[column]
+
+			sql.WriteString("  " + column + " " + mapping.SQLType)
 
 			if idx < len(v.Columns)-1 {
 				sql.WriteString(",")
 			}
 
-			if comment, ok := v.ColumnComments[column]; comment != "" && ok {
-				sql.WriteString("  -- " + comment)
+			if mapping.SQLComment != "" {
+				sql.WriteString("  -- " + mapping.SQLComment)
 			}
 
 			sql.WriteString("\n")
@@ -212,7 +221,7 @@ func parseTagValue(s string) map[string]string {
 	return parsed
 }
 
-func SQLiteTypeForType(t reflect.Type) string {
+func sqliteTypeForGoType(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.String:
 		return "TEXT"

@@ -1,11 +1,12 @@
 package ddllm
 
 import (
-	"github.com/rqlite/sql"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/rqlite/sql"
 )
 
 type SliceFilter struct {
@@ -17,11 +18,11 @@ type SliceFilter struct {
 	filter        sql.Node
 }
 
-func (f *SliceFilter) valueOf(n sql.Node, v reflect.Value, table *Table) reflect.Value {
+func (f *SliceFilter) valueOf(n sql.Node, v reflect.Value, mappings map[string]ColumnMapping) reflect.Value {
 	switch t := n.(type) {
 	case *sql.BinaryExpr:
-		x := f.valueOf(t.X, v, table)
-		y := f.valueOf(t.Y, v, table)
+		x := f.valueOf(t.X, v, mappings)
+		y := f.valueOf(t.Y, v, mappings)
 
 		switch t.Op {
 		case sql.AND:
@@ -64,8 +65,7 @@ func (f *SliceFilter) valueOf(n sql.Node, v reflect.Value, table *Table) reflect
 	case *sql.StringLit:
 		return reflect.ValueOf(t.Value)
 	case *sql.Ident:
-		fieldName := table.ColumnStructFields[t.Name]
-		return v.Elem().FieldByName(fieldName)
+		return v.Elem().FieldByName(mappings[t.Name].GoField)
 	default:
 		panic("unhandled type: " + reflect.TypeOf(n).String())
 	}
@@ -77,7 +77,7 @@ func (f *SliceFilter) matches(v reflect.Value, table *Table) bool {
 		return true
 	}
 
-	value := f.valueOf(f.filter, v, table)
+	value := f.valueOf(f.filter, v, table.ColumnMappings)
 	if value.Kind() == reflect.Bool {
 		return value.Bool()
 	}
@@ -106,12 +106,12 @@ func (f *SliceFilter) Result() []any {
 			for _, column := range f.resultColumns {
 				if column == "*" {
 					for _, tableColumn := range x.Columns {
-						n.Elem().FieldByName(x.ColumnStructFields[tableColumn]).Set(v.Elem().FieldByName(x.ColumnStructFields[tableColumn]))
+						n.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField).Set(v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField))
 					}
 					continue
 				}
 
-				if field, ok := t.FieldByName(x.ColumnStructFields[column]); ok {
+				if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
 					n.Elem().FieldByName(field.Name).Set(v.Elem().FieldByName(field.Name))
 				}
 			}
