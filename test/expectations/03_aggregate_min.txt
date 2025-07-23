@@ -1,0 +1,11 @@
+.section = DDL
+---
+CREATE TABLE temperatures
+(
+  measurement REAL
+)
+
+---
+.section = Result
+---
+65.000000

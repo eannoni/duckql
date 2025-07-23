@@ -1,0 +1,21 @@
+.section = data
+.of = Temperature
+---
+[
+    {
+        "Measurement": 81.0
+    },
+    {
+        "Measurement": 78.0
+    },
+    {
+        "Measurement": 65.0
+    },
+    {
+        "Measurement": 91.0
+    }
+]
+---
+.section = query
+---
+SELECT max(measurement) from temperatures;

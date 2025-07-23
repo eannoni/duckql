@@ -6,3 +6,7 @@ type User struct {
 	Email        string
 	PasswordHash string `ddl:"-"`
 }
+
+type Temperature struct {
+	Measurement float64
+}
