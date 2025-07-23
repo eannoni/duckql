@@ -4,6 +4,8 @@
 
 # DuckQL
 
+[![Go](https://github.com/dburkart/duckql/actions/workflows/go.yml/badge.svg)](https://github.com/dburkart/duckql/actions/workflows/go.yml)
+
 If it looks like a table, and quacks like SQL...
 
 TL;DR: Allow LLMs to interface (safely) with arbitrary data via SQLite syntax
