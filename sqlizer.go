@@ -42,7 +42,6 @@ type SQLizer struct {
 	Permissions              uint
 	Backing                  BackingStore
 	AggregateFunctions       []*AggregateFunctionColumn
-	RawStatement             string
 	HandleAggregateFunctions bool
 }
 
@@ -55,8 +54,6 @@ func (s *SQLizer) SetBacking(backing BackingStore) {
 }
 
 func (s *SQLizer) Execute(statement string) (ResultRows, error) {
-	s.RawStatement = statement
-
 	// Support a small subset of dot commands
 	switch statement {
 	case ".schema":

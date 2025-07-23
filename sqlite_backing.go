@@ -3,15 +3,17 @@ package duckql
 import (
 	gosql "database/sql"
 	"reflect"
+	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqlite/sql"
 )
 
 type SQLiteBacking struct {
-	sqlizer   *SQLizer
-	db        *gosql.DB
-	lastError error
+	sqlizer      *SQLizer
+	db           *gosql.DB
+	lastError    error
+	rawStatement string
 }
 
 // New creates a new SQLiteBacking with the given SQLite database connection
@@ -25,6 +27,48 @@ func NewSQLiteBacking(db *gosql.DB, s *SQLizer) *SQLiteBacking {
 
 // Visit implements sql.Visitor
 func (s *SQLiteBacking) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
+	switch t := n.(type) {
+	case *sql.InsertStatement, *sql.DeleteStatement, *sql.UpdateStatement:
+		s.rawStatement = t.String()
+	case *sql.SelectStatement:
+		// Rewrite the AST to expand '*'
+		// This allows intentionally hidden fields to stay hidden
+
+		var rewritten []*sql.ResultColumn
+		for _, column := range t.Columns {
+			if column.Star.Line > 0 {
+				src, err := strconv.Unquote(t.Source.String())
+				if err != nil {
+					continue
+				}
+
+				source, ok := s.sqlizer.Tables[src]
+				if !ok {
+					continue
+				}
+
+				for _, sourceColumn := range source.Columns {
+					c := column.Clone()
+					c.Star = sql.Pos{}
+					c.Expr = &sql.Ident{
+						Name:   sourceColumn,
+						Quoted: false,
+					}
+					rewritten = append(rewritten, c)
+				}
+
+			} else {
+				rewritten = append(rewritten, column)
+			}
+		}
+
+		t.Columns = rewritten
+
+		s.rawStatement = t.String()
+
+		return s, t, nil
+	}
+
 	return s, n, nil
 }
 
@@ -36,8 +80,8 @@ func (s *SQLiteBacking) VisitEnd(n sql.Node) (sql.Node, error) {
 // Rows implements duckql.BackingStore
 func (s *SQLiteBacking) Rows() ResultRows {
 	var results ResultRows
-	if s.sqlizer.RawStatement != "" {
-		rows, err := s.db.Query(s.sqlizer.RawStatement)
+	if s.rawStatement != "" {
+		rows, err := s.db.Query(s.rawStatement)
 		if err != nil {
 			s.lastError = err
 			return nil
