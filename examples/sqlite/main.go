@@ -11,9 +11,9 @@ import (
 )
 
 var users = [][]string{
-	{"John Doe", "john@example.com"},
-	{"Jane Doe", "jane@example.com"},
-	{"Bob Smith", "bob@example.com"},
+	{"John Doe", "john@example.com", "secret1"},
+	{"Jane Doe", "jane@example.com", "secret2"},
+	{"Bob Smith", "bob@example.com", "secret3"},
 }
 
 func initDB() (*sql.DB, error) {
@@ -28,9 +28,11 @@ func initDB() (*sql.DB, error) {
 	defer db.Close()
 
 	schema := `
-	CREATE TABLE users ( id INTEGER PRIMARY KEY AUTOINCREMENT,
+	CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
-		email TEXT NOT NULL UNIQUE
+		email TEXT NOT NULL UNIQUE,
+		secret TEXT NOT NULL
 	);
 	`
 
@@ -44,14 +46,14 @@ func initDB() (*sql.DB, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("INSERT INTO users (name, email) VALUES (?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO users (name, email, secret) VALUES (?, ?, ?)")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	for _, user := range users {
-		if _, err := stmt.Exec(user[0], user[1]); err != nil {
+		if _, err := stmt.Exec(user[0], user[1], user[2]); err != nil {
 			return nil, err
 		}
 	}
@@ -80,7 +82,8 @@ func main() {
 	s.SetPermissions(duckql.AllowSelectStatements)
 	s.SetBacking(duckql.NewSQLiteBacking(db, s))
 
-	fmt.Println("Enter SQLite queries (Ctrl+C to exit):\n")
+	fmt.Println("Enter SQLite queries (Ctrl+C to exit):")
+	fmt.Println()
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")

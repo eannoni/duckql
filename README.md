@@ -29,6 +29,11 @@ existing APIs or data layers.
 
 ## How it works
 
+DuckQL operates as the glue between a `BackingStore` interface and raw SQLite queries. Depending on the
+kind of data you are accessing, you might choose to use a different type of backing store. Below, we can
+demonstrate the concept with a `SliceFilter`, which allows querying a slice of structs as if it were a
+SQLite database.
+
 First, point `duckql` at your "schema" structs, and export the resulting DDL to your llm of choice:
 
 ```go
@@ -47,23 +52,22 @@ s.SetPermissions(duckql.AllowSelectStatements)
 ddl := s.DDL()
 // Should result in:
 //
-// create table users
+// CREATE TABLE users
 // (
-//   id text,
-//   email text,
-//   name text, -- First and last name of the user (space separated)
+//   id TEXT,
+//   email TEXT,
+//   name TEXT, -- First and last name of the user (space separated)
 // )
 
 ```
 
-In the above snippet, we call `SetPermissions()` to restrict which types of SQL queries are supported.
+In the above snippet, we call `SetPermissions()` to restrict which types of SQL queries are allowed.
 Fields which should not be accessible by an LLM can be marked as private with a 'ddl' tag value of "-".
 Comments can be set via the comment field. These are purely to help the LLM understand the schema.
 
 Construct your prompt with the DDL to explain to the model how it can query information, and have it
-write a query. The next step is running the query against your data. This is done through use of a backing
-store. The blow illustrates a simple "slice filter" backing store for users, and how to use it with
-a query:
+write a query. The next step is running the query against your data. We initialize our `SliceFilter`
+backing store with some hardcoded data, which we can then execute against:
 
 ```go
 ...
@@ -100,11 +104,14 @@ In the above, `duckql` will do the following:
 3) Match the where clause
 4) Only copy selected fields into return value
 
-
 ## Installing
 
-TODO
+```
+go get github.com/dburkart/duckql
+```
 
 ## Examples
 
-TODO
+You can find more examples in the ./examples directory. Examples so far:
+
+ * ./examples/sqlite: Uses the SQLite backing store to demonstrate how to use DuckQL as a "permission" layer on top of a SQLite database.
