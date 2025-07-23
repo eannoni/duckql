@@ -42,6 +42,7 @@ type SQLizer struct {
 	Permissions        uint
 	Backing            BackingStore
 	AggregateFunctions []*AggregateFunctionColumn
+	RawStatement       string
 }
 
 func (s *SQLizer) SetPermissions(permissions uint) {
@@ -53,6 +54,21 @@ func (s *SQLizer) SetBacking(backing BackingStore) {
 }
 
 func (s *SQLizer) Execute(statement string) (ResultRows, error) {
+	s.RawStatement = statement
+
+	// Support a small subset of dot commands
+	switch statement {
+	case ".schema":
+		return ResultRows{
+			ResultRow{
+				ResultValue{
+					Name:  ".schema",
+					Value: reflect.ValueOf(s.DDL()),
+				},
+			},
+		}, nil
+	}
+
 	parser := sql.NewParser(strings.NewReader(statement))
 	stmt, err := parser.ParseStatement()
 	if err != nil {
