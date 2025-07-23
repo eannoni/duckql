@@ -1,0 +1,21 @@
+.section = data
+.of = User
+---
+[
+    {
+        "ID": 1,
+        "Name": "John Doe",
+        "Email": "john@gmail.com",
+        "PasswordHash": "secret"
+    },
+    {
+        "ID": 2,
+        "Name": "Jane Smith",
+        "Email": "jane@aol.com",
+        "PasswordHash": "secret"
+    }
+]
+---
+.section = query
+---
+SELECT password_hash FROM users;

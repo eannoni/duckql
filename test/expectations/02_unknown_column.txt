@@ -1,0 +1,1 @@
+Fail: duckql: Unknown column 'password_hash' for table 'users'

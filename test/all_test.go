@@ -59,16 +59,18 @@ func TestE2E(t *testing.T) {
 					t.Fatal(err)
 				}
 
+				var output string
+
 				r, err := sql.Execute(query)
 				if err != nil {
-					t.Fatal(err)
+					output = "Fail: " + err.Error() + "\n"
+				} else {
+					output = ".section = DDL\n---\n"
+					output += sql.DDL()
+					output += "---\n"
+					output += ".section = Result\n---\n"
+					output += r.String()
 				}
-
-				output := ".section = DDL\n---\n"
-				output += sql.DDL()
-				output += "---\n"
-				output += ".section = Result\n---\n"
-				output += r.String()
 
 				if _, ok := os.LookupEnv("REBASE"); ok {
 					f, err := os.OpenFile(expectation, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
