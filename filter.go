@@ -16,33 +16,51 @@ type SliceFilter struct {
 	filter        sql.Node
 }
 
-func (f *SliceFilter) Rows() ResultRows {
-	var r ResultRows
-	for _, d := range f.data {
-		if !f.s.Matches(f.filter, d) {
+func (f *SliceFilter) rowInternal(d any) ResultRow {
+	if !f.s.Matches(f.filter, d) {
+		return nil
+	}
+
+	t := f.s.TypeForData(d)
+	x := f.s.TableForData(d)
+	v := reflect.ValueOf(d)
+
+	result := ResultRow{}
+
+	for _, column := range f.resultColumns {
+		if column == "*" {
+			for _, tableColumn := range x.Columns {
+				result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
+			}
 			continue
 		}
 
-		t := f.s.TypeForData(d)
-		x := f.s.TableForData(d)
-		v := reflect.ValueOf(d)
+		if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
+			result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(field.Name)})
+		}
+	}
 
-		result := ResultRow{}
+	return result
+}
 
-		for _, column := range f.resultColumns {
-			if column == "*" {
-				for _, tableColumn := range x.Columns {
-					result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
+func (f *SliceFilter) Rows() ResultRows {
+	var r ResultRows
+
+	for _, d := range f.data {
+		if reflect.TypeOf(d).Kind() == reflect.Slice {
+			v := reflect.ValueOf(d)
+			for i := 0; i < v.Len(); i++ {
+				row := f.rowInternal(v.Index(i).Interface())
+				if row != nil {
+					r = append(r, row)
 				}
-				continue
 			}
-
-			if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
-				result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(field.Name)})
+		} else {
+			row := f.rowInternal(d)
+			if row != nil {
+				r = append(r, row)
 			}
 		}
-
-		r = append(r, result)
 	}
 
 	f.tables = make(map[string]*Table)

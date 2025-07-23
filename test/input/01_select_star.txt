@@ -1,0 +1,19 @@
+.section = data
+.of = User
+---
+[
+    {
+        "ID": 1,
+        "Name": "John Doe",
+        "Email": "john@gmail.com"
+    },
+    {
+        "ID": 2,
+        "Name": "Jane Smith",
+        "Email": "jane@aol.com"
+    }
+]
+---
+.section = query
+---
+SELECT * FROM users;
