@@ -16,6 +16,7 @@ type SQLiteBacking struct {
 
 // New creates a new SQLiteBacking with the given SQLite database connection
 func NewSQLiteBacking(db *gosql.DB, s *SQLizer) *SQLiteBacking {
+	s.HandleAggregateFunctions = false
 	return &SQLiteBacking{
 		sqlizer: s,
 		db:      db,

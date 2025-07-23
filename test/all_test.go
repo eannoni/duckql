@@ -1,13 +1,13 @@
 package test
 
 import (
-	"fmt"
-	"github.com/hexops/gotextdiff/span"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"github.com/hexops/gotextdiff/span"
 
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
@@ -105,7 +105,9 @@ func TestE2E(t *testing.T) {
 				edits := myers.ComputeEdits(span.URIFromPath("expectations/"+testName), string(b), output)
 				diff := gotextdiff.ToUnified("expectations/"+testName, "input/"+testName, string(b), edits)
 
-				fmt.Println(diff)
+				if len(diff.Hunks) > 0 {
+					t.Fatal(diff)
+				}
 			})
 		}
 		return nil

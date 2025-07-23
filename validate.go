@@ -59,11 +59,13 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			f.ResultPosition = len(v.columns)
 			v.s.AggregateFunctions = append(v.s.AggregateFunctions, f)
 			s = f.UnderlyingColumn
-			n = &sql.ResultColumn{
-				Expr: &sql.Ident{
-					Name:   s,
-					Quoted: false,
-				},
+			if v.s.HandleAggregateFunctions {
+				n = &sql.ResultColumn{
+					Expr: &sql.Ident{
+						Name:   s,
+						Quoted: false,
+					},
+				}
 			}
 		}
 
