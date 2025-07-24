@@ -30,6 +30,19 @@ type Table struct {
 	ForeignKeys    map[string]*Table
 }
 
+type IntermediateTable struct {
+	Source  *Table
+	Aliases map[string]string
+	Columns []string
+	Rows    ResultRows
+}
+
+func NewIntermediateTable() *IntermediateTable {
+	return &IntermediateTable{
+		Aliases: make(map[string]string),
+	}
+}
+
 const (
 	AllowSelectStatements = 1 << iota
 	AllowInsertStatements
