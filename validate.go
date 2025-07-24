@@ -2,8 +2,6 @@ package duckql
 
 import (
 	"errors"
-	"strconv"
-
 	"github.com/rqlite/sql"
 )
 
@@ -31,50 +29,85 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			return nil, nil, errors.New("duckql: DeleteStatements are not allowed")
 		}
 	case *sql.QualifiedTableName:
-		var table *Table
-		var ok bool
+		if t.Alias != nil {
+			if table, ok := v.s.Tables[t.Name.Name]; ok {
+				v.s.Tables[t.Alias.Name] = table
+			} else {
+				return nil, nil, errors.New("duckql: table not found: " + t.Name.Name)
+			}
+		}
 
-		if table, ok = v.s.Tables[t.TableName()]; !ok || table == nil {
+		if table, ok := v.s.Tables[t.TableName()]; !ok || table == nil {
 			return nil, nil, errors.New("duckql: Unknown table '" + t.TableName() + "'")
 		}
 
-		// Validate all columns
-		for _, column := range v.columns {
-			if column == "*" {
-				continue
-			}
-
-			if _, ok = table.ColumnMappings[column]; !ok {
-				return nil, nil, errors.New("duckql: Unknown column '" + column + "' for table '" + t.TableName() + "'")
-			}
-		}
 	case *sql.ResultColumn:
-		s := t.String()
-		if x, err := strconv.Unquote(s); err == nil {
-			s = x
-		}
 
-		f := ParseAggregateFunction(s)
-		if f != nil {
-			f.ResultPosition = len(v.columns)
-			v.s.AggregateFunctions = append(v.s.AggregateFunctions, f)
-			s = f.UnderlyingColumn
+		switch e := t.Expr.(type) {
+		case *sql.Ident:
+			v.columns = append(v.columns, e.Name)
+		case *sql.Call:
+			var aggregate AggregateFunctionColumn
+			var star sql.Pos
+
+			// FIXME
+			if len(e.Args) > 0 {
+				aggregate.UnderlyingColumn = e.Args[0].(*sql.Ident).Name
+			} else {
+				aggregate.UnderlyingColumn = "*"
+				star.Line = 1
+			}
+
+			aggregate.ResultPosition = len(v.columns)
+			aggregate.Function = functionMap[e.Name.Name]
+
+			v.s.AggregateFunctions = append(v.s.AggregateFunctions, &aggregate)
+			// FIXME
 			if v.s.HandleAggregateFunctions {
 				n = &sql.ResultColumn{
+					Star: star,
 					Expr: &sql.Ident{
-						Name:   s,
+						Name:   aggregate.UnderlyingColumn,
 						Quoted: false,
 					},
 				}
 			}
+			v.columns = append(v.columns, aggregate.UnderlyingColumn)
 		}
-
-		v.columns = append(v.columns, s)
 	}
 
 	return v, n, nil
 }
 
 func (v *Validator) VisitEnd(n sql.Node) (sql.Node, error) {
+	switch t := n.(type) {
+	case *sql.SelectStatement:
+		source := t.Source
+
+		sourceTable, ok := source.(*sql.QualifiedTableName)
+		//sourceJoin, ok := t.Source.(*sql.JoinClause)
+
+		for _, column := range t.Columns {
+			switch e := column.Expr.(type) {
+			case *sql.Ident:
+				if column.Star.Line > 0 {
+					continue
+				}
+
+				if sourceTable != nil {
+					table := v.s.Tables[sourceTable.TableName()]
+
+					if _, ok = table.ColumnMappings[e.Name]; !ok {
+						return nil, errors.New("duckql: Unknown column '" + e.Name + "' for table '" + sourceTable.TableName() + "'")
+					}
+				}
+
+			case *sql.QualifiedRef:
+
+			}
+		}
+
+	}
+
 	return n, nil
 }
