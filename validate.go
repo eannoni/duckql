@@ -28,18 +28,6 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 		if v.s.Permissions&AllowDeleteStatements == 0 {
 			return nil, nil, errors.New("duckql: DeleteStatements are not allowed")
 		}
-	case *sql.QualifiedTableName:
-		if t.Alias != nil {
-			if table, ok := v.s.Tables[t.Name.Name]; ok {
-				v.s.Tables[t.Alias.Name] = table
-			} else {
-				return nil, nil, errors.New("duckql: table not found: " + t.Name.Name)
-			}
-		}
-
-		if table, ok := v.s.Tables[t.TableName()]; !ok || table == nil {
-			return nil, nil, errors.New("duckql: Unknown table '" + t.TableName() + "'")
-		}
 
 	case *sql.ResultColumn:
 
@@ -74,6 +62,19 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			}
 			v.columns = append(v.columns, aggregate.UnderlyingColumn)
 		}
+
+	case *sql.QualifiedTableName:
+		if t.Alias != nil {
+			if table, ok := v.s.Tables[t.Name.Name]; ok {
+				v.s.Tables[t.Alias.Name] = table
+			} else {
+				return nil, nil, errors.New("duckql: table not found: " + t.Name.Name)
+			}
+		}
+
+		if table, ok := v.s.Tables[t.TableName()]; !ok || table == nil {
+			return nil, nil, errors.New("duckql: Unknown table '" + t.TableName() + "'")
+		}
 	}
 
 	return v, n, nil
@@ -106,7 +107,6 @@ func (v *Validator) VisitEnd(n sql.Node) (sql.Node, error) {
 
 			}
 		}
-
 	}
 
 	return n, nil

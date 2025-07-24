@@ -1,10 +1,9 @@
 package duckql
 
 import (
-	"reflect"
-	"strconv"
-
+	"fmt"
 	"github.com/rqlite/sql"
+	"reflect"
 )
 
 type SliceFilter struct {
@@ -12,7 +11,7 @@ type SliceFilter struct {
 	data []any
 
 	tables        map[string]*Table
-	resultColumns []string
+	resultColumns []*sql.ResultColumn
 	filter        sql.Node
 }
 
@@ -28,15 +27,20 @@ func (f *SliceFilter) rowInternal(d any) ResultRow {
 	result := ResultRow{}
 
 	for _, column := range f.resultColumns {
-		if column == "*" {
+		if column.Star.Line > 0 {
 			for _, tableColumn := range x.Columns {
-				result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
+				result = append(result, ResultValue{Name: "*", Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
 			}
 			continue
 		}
 
-		if field, ok := t.FieldByName(x.ColumnMappings[column].GoField); ok {
-			result = append(result, ResultValue{Name: column, Value: v.Elem().FieldByName(field.Name)})
+		switch e := column.Expr.(type) {
+		case *sql.Ident:
+			if field, ok := t.FieldByName(x.ColumnMappings[e.Name].GoField); ok {
+				result = append(result, ResultValue{Name: e.Name, Value: v.Elem().FieldByName(field.Name)})
+			}
+		default:
+			panic(fmt.Sprintf("unknown column type %T", column))
 		}
 	}
 
@@ -64,7 +68,7 @@ func (f *SliceFilter) Rows() ResultRows {
 	}
 
 	f.tables = make(map[string]*Table)
-	f.resultColumns = []string{}
+	f.resultColumns = []*sql.ResultColumn{}
 
 	return r
 }
@@ -78,12 +82,7 @@ func (f *SliceFilter) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	case *sql.QualifiedTableName:
 		f.tables[f.s.Tables[t.TableName()].StructName] = f.s.Tables[t.TableName()]
 	case *sql.ResultColumn:
-		s := t.String()
-		if x, err := strconv.Unquote(s); err == nil {
-			s = x
-		}
-
-		f.resultColumns = append(f.resultColumns, s)
+		f.resultColumns = append(f.resultColumns, t)
 	}
 
 	return f, n, nil
