@@ -6,8 +6,10 @@ import (
 )
 
 var typeMap = map[string]any{
-	"User":        &User{},
-	"Temperature": &Temperature{},
+	"User":         &User{},
+	"Temperature":  &Temperature{},
+	"Account":      &Account{},
+	"Organization": &Organization{},
 }
 
 func TypeByName(name string) any {
@@ -26,6 +28,12 @@ func UnmarshallData(name string, b []byte) (any, error) {
 		return d, json.Unmarshal(b, &d)
 	case "Temperature":
 		var d []*Temperature
+		return d, json.Unmarshal(b, &d)
+	case "Account":
+		var d []*Account
+		return d, json.Unmarshal(b, &d)
+	case "Organization":
+		var d []*Organization
 		return d, json.Unmarshal(b, &d)
 	}
 	return nil, fmt.Errorf("no such data type %q", name)
