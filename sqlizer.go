@@ -1,7 +1,9 @@
 package duckql
 
 import (
+	"cmp"
 	"reflect"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -202,7 +204,17 @@ func (s *SQLizer) DDL() string {
 
 	seen := make(map[*Table]bool)
 
+	// Order the tables
+	var tables []*Table
 	for _, v := range s.Tables {
+		tables = append(tables, v)
+	}
+
+	slices.SortFunc(tables, func(a, b *Table) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	for _, v := range tables {
 		if _, ok := seen[v]; ok {
 			continue
 		}
