@@ -114,4 +114,5 @@ go get github.com/dburkart/duckql
 
 You can find more examples in the ./examples directory. Examples so far:
 
+ * [./examples/slice](./examples/slice): Uses a SliceFilter backing store to demonstrate using DuckQL to "emulate" a SQLite database using preset data.
  * [./examples/sqlite](./examples/sqlite): Uses the SQLite backing store to demonstrate how to use DuckQL as a "permission" layer on top of a SQLite database.
