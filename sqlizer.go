@@ -28,11 +28,9 @@ const (
 )
 
 type SQLizer struct {
-	Tables                   map[string]*Table
-	Permissions              uint
-	Backing                  BackingStore
-	AggregateFunctions       []*AggregateFunctionColumn
-	HandleAggregateFunctions bool
+	Tables      map[string]*Table
+	Permissions uint
+	Backing     BackingStore
 }
 
 func (s *SQLizer) SetPermissions(permissions uint) {
@@ -75,22 +73,7 @@ func (s *SQLizer) Execute(statement string) (ResultRows, error) {
 			return nil, err
 		}
 
-		rows := s.Backing.Rows()
-
-		if len(rows) > 0 && len(s.AggregateFunctions) > 0 && s.HandleAggregateFunctions {
-			var result ResultRows
-			for idx, aggregate := range s.AggregateFunctions {
-				r := aggregate.Call(rows)
-				if idx == 0 {
-					result = append(result, r[0])
-				} else {
-					result[0][aggregate.ResultPosition] = r[0][aggregate.ResultPosition]
-				}
-			}
-			rows = result
-		}
-
-		return rows, nil
+		return s.Backing.Rows(), nil
 	}
 
 	return nil, nil
@@ -203,8 +186,6 @@ func Initialize(structs ...any) *SQLizer {
 	for _, s := range structs {
 		sql.addStructTable(s)
 	}
-
-	sql.HandleAggregateFunctions = true
 
 	return &sql
 }

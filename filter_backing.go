@@ -259,8 +259,11 @@ func (f *SliceFilter) Rows() ResultRows {
 	var r ResultRows
 
 	source := f.intermediate.Result()
-
 	source = source.Filter(f.filter)
+
+	if len(source.Rows) == 0 {
+		return r
+	}
 
 	// Transform our intermediate columns into a lookup table
 	lookup := make(map[string]int)
@@ -268,51 +271,112 @@ func (f *SliceFilter) Rows() ResultRows {
 		lookup[column] = idx
 	}
 
-	for _, row := range source.Rows {
-		var narrow ResultRow
+	// Find column positions to narrow
+	var narrowColumns []int
+	for _, column := range f.resultColumns {
+		if column.Star.Line > 0 {
+			for idx, _ := range source.Rows[0] {
+				narrowColumns = append(narrowColumns, idx)
+			}
+			break
+		}
 
-		for _, column := range f.resultColumns {
-			if column.Star.Line > 0 {
-				narrow = row
+		switch t := column.Expr.(type) {
+		case *sql.Ident:
+			index, ok := lookup[t.Name]
+			if !ok {
+				// FIXME: There should be a better way
+				parts := strings.Split(source.Columns[0], ".")
+				if len(parts) > 1 {
+					index = lookup[parts[0]+"."+t.Name]
+				}
 			}
 
-			switch t := column.Expr.(type) {
-			case *sql.Ident:
-				index, ok := lookup[t.Name]
+			narrowColumns = append(narrowColumns, index)
+		case *sql.QualifiedRef:
+			if t.Star.Line != 0 {
+				// FIXME: Implement
+				continue
+			}
+
+			lh := t.Table.Name
+			rh := t.Column.Name
+
+			var index int
+			var ok bool
+			if source.Source != nil {
+				index, ok = lookup[rh]
+			} else {
+				index, ok = lookup[lh+"."+rh]
 				if !ok {
+					index = lookup[source.Aliases[lh]+"."+rh]
+				}
+			}
+
+			narrowColumns = append(narrowColumns, index)
+		default:
+			narrowColumns = append(narrowColumns, 0)
+		}
+	}
+
+	// Find aggregations
+	var aggregations []AggregateFunctionColumn
+	for idx, column := range f.resultColumns {
+		switch t := column.Expr.(type) {
+		case *sql.Call:
+			var underlying string
+			if t.Star.Line == 0 {
+				if len(t.Args) != 1 {
+					panic("unexpected number of args to function")
+				}
+
+				switch arg := t.Args[0].(type) {
+				case *sql.Ident:
+					// Validate?
+					index, ok := lookup[arg.Name]
+					if ok {
+						underlying = arg.Name
+						break
+					}
+
 					// FIXME: There should be a better way
 					parts := strings.Split(source.Columns[0], ".")
 					if len(parts) > 1 {
-						index = lookup[parts[0]+"."+t.Name]
+						index, ok = lookup[parts[0]+"."+arg.Name]
+						if ok {
+							underlying = parts[0] + "." + arg.Name
+						}
 					}
+
+					narrowColumns[idx] = index
 				}
-
-				narrow = append(narrow, row[index])
-			case *sql.QualifiedRef:
-				if t.Star.Line != 0 {
-					// FIXME: Implement
-					continue
-				}
-
-				lh := t.Table.Name
-				rh := t.Column.Name
-
-				var index int
-				var ok bool
-				if source.Source != nil {
-					index, ok = lookup[rh]
-				} else {
-					index, ok = lookup[lh+"."+rh]
-					if !ok {
-						index = lookup[source.Aliases[lh]+"."+rh]
-					}
-				}
-
-				narrow = append(narrow, row[index])
+			} else {
+				narrowColumns[idx] = 0
 			}
+
+			aggregations = append(aggregations, AggregateFunctionColumn{
+				UnderlyingColumn: underlying,
+				ResultPosition:   idx,
+				Function:         functionMap[t.Name.Name],
+			})
+		}
+	}
+
+	for _, row := range source.Rows {
+		if len(row) == len(narrowColumns) {
+			r = append(r, row)
+			continue
 		}
 
-		r = append(r, narrow)
+		var newRow ResultRow
+		for _, column := range narrowColumns {
+			newRow = append(newRow, row[column])
+		}
+		r = append(r, newRow)
+	}
+
+	for _, aggregation := range aggregations {
+		r = aggregation.Call(r)
 	}
 
 	f.resultColumns = []*sql.ResultColumn{}

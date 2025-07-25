@@ -35,32 +35,16 @@ func (v *Validator) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 		case *sql.Ident:
 			v.columns = append(v.columns, e.Name)
 		case *sql.Call:
-			var aggregate AggregateFunctionColumn
-			var star sql.Pos
+			var underlyingColumn string
 
 			// FIXME
 			if len(e.Args) > 0 {
-				aggregate.UnderlyingColumn = e.Args[0].(*sql.Ident).Name
+				underlyingColumn = e.Args[0].(*sql.Ident).Name
 			} else {
-				aggregate.UnderlyingColumn = "*"
-				star.Line = 1
+				underlyingColumn = "*"
 			}
 
-			aggregate.ResultPosition = len(v.columns)
-			aggregate.Function = functionMap[e.Name.Name]
-
-			v.s.AggregateFunctions = append(v.s.AggregateFunctions, &aggregate)
-			// FIXME
-			if v.s.HandleAggregateFunctions {
-				n = &sql.ResultColumn{
-					Star: star,
-					Expr: &sql.Ident{
-						Name:   aggregate.UnderlyingColumn,
-						Quoted: false,
-					},
-				}
-			}
-			v.columns = append(v.columns, aggregate.UnderlyingColumn)
+			v.columns = append(v.columns, underlyingColumn)
 		}
 
 	case *sql.QualifiedTableName:

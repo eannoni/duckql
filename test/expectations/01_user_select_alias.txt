@@ -1,0 +1,14 @@
+.section = DDL
+---
+CREATE TABLE users
+(
+  id INTEGER,
+  name TEXT,
+  email TEXT
+)
+
+---
+.section = Result
+---
+John Doe
+Jane Smith
