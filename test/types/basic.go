@@ -19,6 +19,7 @@ type Account struct {
 }
 
 type Organization struct {
-	ID   int
-	Name string
+	ID       int
+	Name     string
+	Accounts []Account
 }

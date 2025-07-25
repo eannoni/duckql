@@ -137,6 +137,7 @@ func (s *SQLizer) addStructTable(str any) {
 		return
 	}
 
+	var possibleForeignKeys []any
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
@@ -146,7 +147,7 @@ func (s *SQLizer) addStructTable(str any) {
 
 		if columnType == "unknown" {
 			if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() == reflect.Struct {
-				s.addStructTable(field.Type.Elem())
+				possibleForeignKeys = append(possibleForeignKeys, field.Type.Elem())
 			}
 			continue
 		}
@@ -177,6 +178,12 @@ func (s *SQLizer) addStructTable(str any) {
 	}
 
 	s.Tables[table.Name] = &table
+
+	if len(possibleForeignKeys) > 0 {
+		for _, unknown := range possibleForeignKeys {
+			s.addStructTable(unknown)
+		}
+	}
 }
 
 func Initialize(structs ...any) *SQLizer {

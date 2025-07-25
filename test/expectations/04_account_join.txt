@@ -6,6 +6,7 @@ CREATE TABLE accounts
   username TEXT,
   email TEXT,
   organization_id INTEGER
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
 )
 
 CREATE TABLE organizations
