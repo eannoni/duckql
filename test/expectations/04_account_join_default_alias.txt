@@ -1,11 +1,5 @@
 .section = DDL
 ---
-CREATE TABLE organizations
-(
-  id INTEGER,
-  name TEXT
-)
-
 CREATE TABLE accounts
 (
   id INTEGER,
@@ -13,6 +7,12 @@ CREATE TABLE accounts
   email TEXT,
   organization_id INTEGER
   FOREIGN KEY (organization_id) REFERENCES organizations(id)
+)
+
+CREATE TABLE organizations
+(
+  id INTEGER,
+  name TEXT
 )
 
 ---
