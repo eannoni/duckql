@@ -1,0 +1,29 @@
+.section = data
+.of = Account
+---
+[
+    {
+        "ID": 1,
+        "Username": "user1",
+        "Email": "user1@gmail.com",
+        "OrganizationID": 23
+    }
+]
+---
+.section = data
+.of = Organization
+---
+[
+    {
+        "ID": 22,
+        "Name": "Acme Inc."
+    },
+    {
+        "ID": 23,
+        "Name": "Initech"
+    }
+]
+---
+.section = query
+---
+SELECT accounts.username, org.name FROM accounts INNER JOIN organizations AS org ON org.id = accounts.organization_id;

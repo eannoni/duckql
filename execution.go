@@ -2,6 +2,7 @@ package duckql
 
 import (
 	"github.com/rqlite/sql"
+	"strconv"
 	"strings"
 )
 
@@ -12,6 +13,7 @@ type QueryExecutor struct {
 	intermediate  IntermediateVisitor
 	tables        map[string]*Table
 	filter        sql.Node
+	limit         sql.Expr
 	resultColumns []*sql.ResultColumn
 }
 
@@ -21,6 +23,11 @@ func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	}
 
 	switch t := n.(type) {
+	case *sql.SelectStatement:
+		if t.Limit.IsValid() {
+			q.limit = t.LimitExpr
+		}
+
 	case *sql.QualifiedTableName:
 		var qt QualifiedTableVisitor
 		qt.F = q
@@ -61,6 +68,17 @@ func (q *QueryExecutor) Rows() ResultRows {
 
 	if len(source.Rows) == 0 {
 		return r
+	}
+
+	if q.limit != nil {
+		switch t := q.limit.(type) {
+		case *sql.NumberLit:
+			n, err := strconv.Atoi(t.Value)
+			if err != nil {
+				panic(err)
+			}
+			source.Rows = source.Rows[:n]
+		}
 	}
 
 	// Transform our intermediate columns into a lookup table

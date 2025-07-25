@@ -1,0 +1,21 @@
+.section = DDL
+---
+CREATE TABLE accounts
+(
+  id INTEGER,
+  username TEXT,
+  email TEXT,
+  organization_id INTEGER
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+)
+
+CREATE TABLE organizations
+(
+  id INTEGER,
+  name TEXT
+)
+
+---
+.section = Result
+---
+user1|Initech
