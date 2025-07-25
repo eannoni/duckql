@@ -1,9 +1,9 @@
 package duckql
 
 import (
-	"fmt"
 	"github.com/rqlite/sql"
 	"reflect"
+	"strings"
 )
 
 type IntermediateVisitor interface {
@@ -255,42 +255,12 @@ type SliceFilter struct {
 	resultColumns []*sql.ResultColumn
 }
 
-func (f *SliceFilter) rowInternal(d any) ResultRow {
-	if !f.s.Matches(f.filter, d) {
-		return nil
-	}
-
-	t := f.s.TypeForData(d)
-	x := f.s.TableForData(d)
-	v := reflect.ValueOf(d)
-
-	result := ResultRow{}
-
-	for _, column := range f.resultColumns {
-		if column.Star.Line > 0 {
-			for _, tableColumn := range x.Columns {
-				result = append(result, ResultValue{Name: "*", Value: v.Elem().FieldByName(x.ColumnMappings[tableColumn].GoField)})
-			}
-			continue
-		}
-
-		switch e := column.Expr.(type) {
-		case *sql.Ident:
-			if field, ok := t.FieldByName(x.ColumnMappings[e.Name].GoField); ok {
-				result = append(result, ResultValue{Name: e.Name, Value: v.Elem().FieldByName(field.Name)})
-			}
-		default:
-			panic(fmt.Sprintf("unknown column type %T", column))
-		}
-	}
-
-	return result
-}
-
 func (f *SliceFilter) Rows() ResultRows {
 	var r ResultRows
 
 	source := f.intermediate.Result()
+
+	source = source.Filter(f.filter)
 
 	// Transform our intermediate columns into a lookup table
 	lookup := make(map[string]int)
@@ -308,7 +278,15 @@ func (f *SliceFilter) Rows() ResultRows {
 
 			switch t := column.Expr.(type) {
 			case *sql.Ident:
-				index := lookup[t.Name]
+				index, ok := lookup[t.Name]
+				if !ok {
+					// FIXME: There should be a better way
+					parts := strings.Split(source.Columns[0], ".")
+					if len(parts) > 1 {
+						index = lookup[parts[0]+"."+t.Name]
+					}
+				}
+
 				narrow = append(narrow, row[index])
 			case *sql.QualifiedRef:
 				if t.Star.Line != 0 {
