@@ -1,0 +1,27 @@
+.section = data
+.of = User
+---
+[
+    {
+        "ID": 1,
+        "Name": "John Doe",
+        "Email": "john@gmail.com",
+        "PasswordHash": "secret"
+    },
+    {
+        "ID": 2,
+        "Name": "Jane Smith",
+        "Email": "jane@aol.com",
+        "PasswordHash": "secret"
+    },
+    {
+        "ID": 3,
+        "Name": "Alice",
+        "Email": "alice@aol.com",
+        "PasswordHash": "secret"
+    }
+]
+---
+.section = query
+---
+SELECT * FROM users ORDER BY name ASC;

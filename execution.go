@@ -1,7 +1,10 @@
 package duckql
 
 import (
+	"cmp"
 	"github.com/rqlite/sql"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -14,6 +17,7 @@ type QueryExecutor struct {
 	tables        map[string]*Table
 	filter        sql.Node
 	limit         sql.Expr
+	order         []*sql.OrderingTerm
 	resultColumns []*sql.ResultColumn
 }
 
@@ -26,6 +30,10 @@ func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	case *sql.SelectStatement:
 		if t.Limit.IsValid() {
 			q.limit = t.LimitExpr
+		}
+
+		if t.OrderingTerms != nil {
+			q.order = t.OrderingTerms
 		}
 
 	case *sql.QualifiedTableName:
@@ -70,6 +78,86 @@ func (q *QueryExecutor) Rows() ResultRows {
 		return r
 	}
 
+	// Transform our intermediate columns into a lookup table
+	lookup := make(map[string]int)
+	for idx, column := range source.Columns {
+		lookup[column] = idx
+	}
+
+	// Order
+	if len(q.order) > 0 {
+		var expandedOrder []int
+		var asc []bool
+
+		for _, o := range q.order {
+			if o.Asc.IsValid() {
+				asc = append(asc, true)
+			} else {
+				asc = append(asc, false)
+			}
+
+			switch t := o.X.(type) {
+			case *sql.Ident:
+				i, ok := lookup[t.Name]
+				if !ok {
+					// FIXME: There should be a better way
+					parts := strings.Split(source.Columns[0], ".")
+					if len(parts) > 1 {
+						i = lookup[parts[0]+"."+t.Name]
+					}
+				}
+				expandedOrder = append(expandedOrder, i)
+			case *sql.QualifiedRef:
+				if t.Star.Line != 0 {
+					// FIXME: Implement
+					continue
+				}
+
+				lh := t.Table.Name
+				rh := t.Column.Name
+
+				var i int
+				var ok bool
+				if source.Source != nil {
+					i, ok = lookup[rh]
+				} else {
+					i, ok = lookup[lh+"."+rh]
+					if !ok {
+						i = lookup[source.Aliases[lh]+"."+rh]
+					}
+				}
+				expandedOrder = append(expandedOrder, i)
+			}
+		}
+
+		slices.SortFunc(source.Rows, func(a, b ResultRow) int {
+			var result int
+			for idx, i := range expandedOrder {
+				ai, bi := a[i], b[i]
+
+				switch ai.Value.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					result = cmp.Compare(ai.Value.Int(), bi.Value.Int())
+				case reflect.Float32, reflect.Float64:
+					result = cmp.Compare(ai.Value.Float(), bi.Value.Float())
+				case reflect.String:
+					result = cmp.Compare(ai.Value.String(), bi.Value.String())
+				}
+
+				if asc[idx] == false {
+					result *= -1
+				}
+
+				if result != 0 || len(expandedOrder)-1 == idx {
+					return result
+				}
+			}
+
+			return result
+		})
+	}
+
+	// Limit
 	if q.limit != nil {
 		switch t := q.limit.(type) {
 		case *sql.NumberLit:
@@ -79,12 +167,6 @@ func (q *QueryExecutor) Rows() ResultRows {
 			}
 			source.Rows = source.Rows[:n]
 		}
-	}
-
-	// Transform our intermediate columns into a lookup table
-	lookup := make(map[string]int)
-	for idx, column := range source.Columns {
-		lookup[column] = idx
 	}
 
 	// Find column positions to narrow
