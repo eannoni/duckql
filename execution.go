@@ -38,6 +38,8 @@ func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 			q.order = t.OrderingTerms
 		}
 
+		q.filter = t.WhereExpr
+
 	case *sql.QualifiedTableName:
 		var qt QualifiedTableVisitor
 		qt.F = q
@@ -63,10 +65,6 @@ func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 }
 
 func (q *QueryExecutor) VisitEnd(n sql.Node) (sql.Node, error) {
-	switch t := n.(type) {
-	case *sql.UnaryExpr, *sql.BinaryExpr:
-		q.filter = t
-	}
 	return n, nil
 }
 
