@@ -27,6 +27,8 @@ func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	}
 
 	switch t := n.(type) {
+	case *sql.UnaryExpr, *sql.BinaryExpr:
+		q.filter = t
 	case *sql.SelectStatement:
 		if t.Limit.IsValid() {
 			q.limit = t.LimitExpr
