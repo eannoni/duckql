@@ -21,6 +21,10 @@ type QueryExecutor struct {
 	resultColumns []*sql.ResultColumn
 }
 
+func (q *QueryExecutor) Filter() sql.Node {
+	return q.filter
+}
+
 func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	if q.tables == nil {
 		q.tables = make(map[string]*Table)
@@ -304,11 +308,12 @@ func (i *QualifiedTableVisitor) Visit(n sql.Node) (sql.Visitor, sql.Node, error)
 	case *sql.QualifiedTableName:
 		i.Table = NewIntermediateTable()
 		i.Table.Source = i.F.s.Tables[t.TableName()]
-		i.F.FillIntermediate(i.Table)
 
 		if t.Alias != nil {
 			i.Table.Aliases[t.Alias.Name] = t.Name.Name
 		}
+
+		i.F.FillIntermediate(i.Table)
 	}
 	return i, n, nil
 }

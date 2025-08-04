@@ -20,6 +20,7 @@ type ColumnMapping struct {
 	GoField    string
 	SQLType    string
 	SQLComment string
+	Tag        reflect.StructTag
 }
 
 const (
@@ -176,6 +177,7 @@ func (s *SQLizer) addStructTable(str any) {
 			GoField:    field.Name,
 			SQLType:    columnType,
 			SQLComment: columnComment,
+			Tag:        field.Tag,
 		}
 	}
 
