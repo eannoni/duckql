@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type User struct {
 	ID           int
 	Name         string
@@ -22,4 +24,10 @@ type Organization struct {
 	ID       int
 	Name     string
 	Accounts []Account
+}
+
+type Transaction struct {
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+	Action     string
 }

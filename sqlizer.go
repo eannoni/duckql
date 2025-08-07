@@ -277,6 +277,10 @@ func pluralize(s string) string {
 		return s
 	}
 
+	if strings.HasSuffix(s, "y") {
+		return s[:len(s)-1] + "ies"
+	}
+
 	return s + "s"
 }
 
@@ -316,6 +320,10 @@ func sqliteTypeForGoType(t reflect.Type) string {
 		return "INTEGER"
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return "INTEGER"
+	case reflect.Struct:
+		if t.Name() == "Time" {
+			return "INTEGER"
+		}
 	case reflect.Float32, reflect.Float64:
 		return "REAL"
 	}

@@ -1,11 +1,13 @@
 package duckql
 
 import (
-	"github.com/rqlite/sql"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/rqlite/sql"
 )
 
 type Table struct {
@@ -23,11 +25,35 @@ type IntermediateTable struct {
 	Rows    ResultRows
 }
 
+func coerceToInt(x reflect.Value) *int64 {
+	var i int64
+	switch x.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i = x.Int()
+
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		i = x.Int()
+
+	case reflect.Struct:
+		if x.Type().Name() == "Time" {
+			i = x.Interface().(time.Time).Unix()
+		} else {
+			return nil
+		}
+	default:
+		return nil
+	}
+
+	return &i
+}
+
 func (i *IntermediateTable) evaluate(n sql.Node, row ResultRow) reflect.Value {
 	switch t := n.(type) {
 	case *sql.BinaryExpr:
 		x := i.evaluate(t.X, row)
 		y := i.evaluate(t.Y, row)
+
+		xI, yI := coerceToInt(x), coerceToInt(y)
 
 		switch t.Op {
 		case sql.AND:
@@ -39,16 +65,33 @@ func (i *IntermediateTable) evaluate(n sql.Node, row ResultRow) reflect.Value {
 		case sql.NE:
 			return reflect.ValueOf(!reflect.DeepEqual(x.Interface(), y.Interface()))
 		case sql.GT:
-			return reflect.ValueOf(x.Int() > y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI > *yI)
 		case sql.GE:
-			return reflect.ValueOf(x.Int() >= y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI >= *yI)
 		case sql.LT:
-			return reflect.ValueOf(x.Int() < y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI < *yI)
 		case sql.LE:
-			return reflect.ValueOf(x.Int() <= y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI <= *yI)
 		case sql.LIKE:
 			match := strings.ReplaceAll(y.String(), "%", ".*")
 			matched, err := regexp.MatchString(match, x.String())
+			// FIXME: This should be an error
 			if err != nil {
 				return reflect.ValueOf(false)
 			}
@@ -56,6 +99,7 @@ func (i *IntermediateTable) evaluate(n sql.Node, row ResultRow) reflect.Value {
 		case sql.NOTLIKE:
 			match := strings.ReplaceAll(y.String(), "%", ".*")
 			matched, err := regexp.MatchString(match, x.String())
+			// FIXME: This should be an error
 			if err != nil {
 				return reflect.ValueOf(false)
 			}
@@ -141,6 +185,8 @@ func (s *SQLizer) valueOf(n sql.Node, v reflect.Value, mappings map[string]Colum
 		x := s.valueOf(t.X, v, mappings)
 		y := s.valueOf(t.Y, v, mappings)
 
+		xI, yI := coerceToInt(x), coerceToInt(y)
+
 		switch t.Op {
 		case sql.AND:
 			return reflect.ValueOf(x.Bool() && y.Bool())
@@ -151,13 +197,29 @@ func (s *SQLizer) valueOf(n sql.Node, v reflect.Value, mappings map[string]Colum
 		case sql.NE:
 			return reflect.ValueOf(!reflect.DeepEqual(x.Interface(), y.Interface()))
 		case sql.GT:
-			return reflect.ValueOf(x.Int() > y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI > *yI)
 		case sql.GE:
-			return reflect.ValueOf(x.Int() >= y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI >= *yI)
 		case sql.LT:
-			return reflect.ValueOf(x.Int() < y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI < *yI)
 		case sql.LE:
-			return reflect.ValueOf(x.Int() <= y.Int())
+			// FIXME: This should be an error
+			if xI == nil || yI == nil {
+				return reflect.ValueOf(false)
+			}
+			return reflect.ValueOf(*xI <= *yI)
 		case sql.LIKE:
 			match := strings.ReplaceAll(y.String(), "%", ".*")
 			matched, err := regexp.MatchString(match, x.String())

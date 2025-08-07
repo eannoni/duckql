@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type ResultRows []ResultRow
@@ -38,6 +39,10 @@ func (r *ResultRow) String() string {
 			s.WriteString(fmt.Sprintf("%f", v.Value.Float()))
 		case reflect.String:
 			s.WriteString(fmt.Sprintf("%s", v.Value.String()))
+		case reflect.Struct:
+			if v.Value.Type().Name() == "Time" {
+				s.WriteString(fmt.Sprintf("%d", v.Value.Interface().(time.Time).Unix()))
+			}
 		default:
 			s.WriteString(fmt.Sprintf("%v", v.Value.Interface()))
 		}

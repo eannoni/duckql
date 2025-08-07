@@ -1,0 +1,15 @@
+.section = DDL
+---
+CREATE TABLE transactions
+(
+  created_at INTEGER,
+  modified_at INTEGER,
+  action TEXT
+)
+
+---
+.section = Result
+---
+1754443782|1754443782|Action 1
+1754508582|1754541162|Action 2
+1754530182|1754537382|Action 3
