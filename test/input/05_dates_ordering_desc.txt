@@ -1,0 +1,24 @@
+.section = data
+.of = Transaction
+---
+[
+    {
+       "CreatedAt": "2025-08-06T18:29:42-07:00",
+       "ModifiedAt": "2025-08-06T20:29:42-07:00",
+       "Action": "Action 3"
+    },
+    {
+       "CreatedAt": "2025-08-05T18:29:42-07:00",
+       "ModifiedAt": "2025-08-05T18:29:42-07:00",
+       "Action": "Action 1"
+    },
+    {
+       "CreatedAt": "2025-08-06T12:29:42-07:00",
+       "ModifiedAt": "2025-08-06T21:32:42-07:00",
+       "Action": "Action 2"
+    }
+]
+---
+.section = query
+---
+SELECT * FROM transactions ORDER BY created_at DESC;

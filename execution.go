@@ -2,11 +2,12 @@ package duckql
 
 import (
 	"cmp"
-	"github.com/rqlite/sql"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/rqlite/sql"
 )
 
 type QueryExecutor struct {
@@ -31,13 +32,10 @@ func (q *QueryExecutor) Visit(n sql.Node) (sql.Visitor, sql.Node, error) {
 	}
 
 	switch t := n.(type) {
-	case *sql.UnaryExpr, *sql.BinaryExpr:
-		q.filter = t
 	case *sql.SelectStatement:
 		if t.Limit.IsValid() {
 			q.limit = t.LimitExpr
 		}
-
 		if t.OrderingTerms != nil {
 			q.order = t.OrderingTerms
 		}
@@ -139,13 +137,27 @@ func (q *QueryExecutor) Rows() ResultRows {
 			for idx, i := range expandedOrder {
 				ai, bi := a[i], b[i]
 
+				aInt, bInt := coerceToInt(ai.Value), coerceToInt(bi.Value)
+
 				switch ai.Value.Kind() {
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					result = cmp.Compare(ai.Value.Int(), bi.Value.Int())
+					if aInt == nil || bInt == nil {
+						// FIXME: What to do here?
+						continue
+					}
+					result = cmp.Compare(*aInt, *bInt)
 				case reflect.Float32, reflect.Float64:
 					result = cmp.Compare(ai.Value.Float(), bi.Value.Float())
 				case reflect.String:
 					result = cmp.Compare(ai.Value.String(), bi.Value.String())
+				case reflect.Struct:
+					if ai.Value.Type().Name() == "Time" {
+						if aInt == nil || bInt == nil {
+							// FIXME: What to do here?
+							continue
+						}
+						result = cmp.Compare(*aInt, *bInt)
+					}
 				}
 
 				if asc[idx] == false {
