@@ -6,8 +6,9 @@ import (
 	"google.golang.org/api/sheets/v4"
 	"log"
 	"reflect"
+	"regexp"
 	"strconv"
-	"unicode/utf8"
+	"time"
 )
 
 type SheetsOptions struct {
@@ -64,6 +65,52 @@ func (s *SheetsBacking) ComputeRangeString(colStart string, rowStart int, colEnd
 	return rangeStr
 }
 
+func coerceSpreadsheetValue(s string, t reflect.Type) reflect.Value {
+	switch t.Kind() {
+	case reflect.String:
+		return reflect.ValueOf(s)
+	case reflect.Bool:
+		return reflect.ValueOf(s == "TRUE")
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return reflect.ValueOf(s)
+		}
+		return reflect.ValueOf(i)
+	case reflect.Float32, reflect.Float64:
+		clean := regexp.MustCompile(`[^0-9.\-]`).ReplaceAllString(s, "")
+		f, err := strconv.ParseFloat(clean, 64)
+		if err != nil {
+			return reflect.ValueOf(s)
+		}
+		return reflect.ValueOf(f)
+	case reflect.Struct:
+		if t.Name() == "Time" {
+			t, err := time.Parse("1/2/2006 15:04:05", s)
+			if err != nil {
+				t, err = time.Parse("1/2/2006", s)
+				if err != nil {
+					t, err = time.Parse(time.RFC3339, s)
+				}
+			}
+			return reflect.ValueOf(t)
+		}
+		return reflect.ValueOf(s)
+	default:
+		return reflect.ValueOf(s)
+	}
+}
+
+// SheetColumnToIndex converts a Google Sheets column name into its index ('A' -> 0, 'AA' -> 26)
+func SheetColumnToIndex(col string) int {
+	index := 0
+	for i := 0; i < len(col); i++ {
+		c := col[i]
+		index = index*26 + int(c-'A'+1)
+	}
+	return index - 1
+}
+
 func (s *SheetsBacking) FillIntermediate(intermediate *IntermediateTable) {
 	if intermediate == nil {
 		panic("no intermediate table")
@@ -98,6 +145,7 @@ func (s *SheetsBacking) FillIntermediate(intermediate *IntermediateTable) {
 	rowEnd := rowStart + numRows - 1
 
 	readRange := s.ComputeRangeString(colStart, rowStart, colEnd, rowEnd)
+	colStartIndex := SheetColumnToIndex(colStart)
 
 	resp, err := s.options.Service.Spreadsheets.Values.Get(s.options.SheetId, readRange).Do()
 	if err != nil {
@@ -112,16 +160,15 @@ func (s *SheetsBacking) FillIntermediate(intermediate *IntermediateTable) {
 		var result ResultRow
 
 		for _, column := range intermediate.Columns {
-			columnName := intermediate.Source.ColumnMappings[column].Tag.Get("sheets")
+			mapping := intermediate.Source.ColumnMappings[column]
+			columnName := mapping.Tag.Get("sheets")
+			absoluteIndex := SheetColumnToIndex(columnName)
 
-			// Compute index
-			colRune, _ := utf8.DecodeRuneInString(columnName)
-			startRune, _ := utf8.DecodeRuneInString(colStart)
-			index := colRune - startRune
+			index := absoluteIndex - colStartIndex
 
 			var cellValue reflect.Value
-			if int(index) < len(row) {
-				cellValue = reflect.ValueOf(row[index])
+			if index < len(row) {
+				cellValue = coerceSpreadsheetValue(row[index].(string), mapping.Type)
 			} else {
 				cellValue = reflect.ValueOf("")
 			}

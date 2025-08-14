@@ -31,3 +31,7 @@ type Transaction struct {
 	ModifiedAt time.Time
 	Action     string
 }
+
+type Message struct {
+	IsUser bool
+}

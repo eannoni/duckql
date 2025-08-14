@@ -24,7 +24,9 @@ type Item struct {
 	EstimatedValue  float32   `sheets:"I"`
 	ActualValue     float32   `sheets:"J"`
 	ResearchedValue float32   `sheets:"K"`
-	CompletedOn     time.Time `sheets:"L"`
+	CreatedOn       time.Time `sheets:"L"`
+	CompletedOn     time.Time `sheets:"M"`
+	Boolean         bool      `sheets:"N"`
 }
 
 func main() {

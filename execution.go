@@ -92,11 +92,7 @@ func (q *QueryExecutor) Rows() ResultRows {
 		var asc []bool
 
 		for _, o := range q.order {
-			if o.Asc.IsValid() {
-				asc = append(asc, true)
-			} else {
-				asc = append(asc, false)
-			}
+			asc = append(asc, !o.Desc.IsValid())
 
 			switch t := o.X.(type) {
 			case *sql.Ident:

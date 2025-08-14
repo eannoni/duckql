@@ -1,0 +1,15 @@
+.section = data
+.of = Message
+---
+[
+    {
+       "IsUser": false
+    },
+    {
+       "IsUser": true
+    }
+]
+---
+.section = query
+---
+SELECT * FROM messages;

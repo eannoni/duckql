@@ -21,4 +21,4 @@
 ---
 .section = query
 ---
-SELECT * FROM transactions ORDER BY created_at;
+SELECT * FROM transactions ORDER BY created_at ASC;

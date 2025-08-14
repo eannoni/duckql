@@ -21,6 +21,7 @@ type ColumnMapping struct {
 	SQLType    string
 	SQLComment string
 	Tag        reflect.StructTag
+	Type       reflect.Type
 }
 
 const (
@@ -178,6 +179,7 @@ func (s *SQLizer) addStructTable(str any) {
 			SQLType:    columnType,
 			SQLComment: columnComment,
 			Tag:        field.Tag,
+			Type:       field.Type,
 		}
 	}
 
@@ -316,8 +318,10 @@ func sqliteTypeForGoType(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.String:
 		return "TEXT"
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Bool:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return "INTEGER"
+	case reflect.Bool:
+		return "BOOLEAN"
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return "INTEGER"
 	case reflect.Struct:

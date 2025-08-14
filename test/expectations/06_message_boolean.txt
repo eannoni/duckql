@@ -1,0 +1,12 @@
+.section = DDL
+---
+CREATE TABLE messages
+(
+  is_user BOOLEAN
+)
+
+---
+.section = Result
+---
+0
+1

@@ -28,11 +28,16 @@ type IntermediateTable struct {
 func coerceToInt(x reflect.Value) *int64 {
 	var i int64
 	switch x.Kind() {
-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		i = x.Int()
 
-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		i = x.Int()
+
+	case reflect.Bool:
+		if x.Bool() {
+			i = 1
+		}
 
 	case reflect.Struct:
 		if x.Type().Name() == "Time" {
@@ -110,7 +115,9 @@ func (i *IntermediateTable) evaluate(n sql.Node, row ResultRow) reflect.Value {
 		if err != nil {
 			panic(err)
 		}
-		return reflect.ValueOf(i)
+		return reflect.ValueOf(int64(i))
+	case *sql.BoolLit:
+		return reflect.ValueOf(t.Value)
 	case *sql.StringLit:
 		return reflect.ValueOf(t.Value)
 	case *sql.QualifiedRef:
@@ -122,11 +129,13 @@ func (i *IntermediateTable) evaluate(n sql.Node, row ResultRow) reflect.Value {
 		ref := lh + "." + rh
 
 		for idx, column := range i.Columns {
-			if ref == column {
-				return row[idx].Value
-			}
+			if ref == column || i.Aliases[lh]+"."+rh == column {
+				if row[idx].Value.Kind() == reflect.Bool {
+					if i := coerceToInt(row[idx].Value); i != nil {
+						return reflect.ValueOf(*i)
+					}
+				}
 
-			if i.Aliases[lh]+"."+rh == column {
 				return row[idx].Value
 			}
 		}
@@ -135,11 +144,13 @@ func (i *IntermediateTable) evaluate(n sql.Node, row ResultRow) reflect.Value {
 
 	case *sql.Ident:
 		for idx, column := range i.Columns {
-			if t.Name == column {
-				return row[idx].Value
-			}
+			if t.Name == column || (i.Source != nil && i.Source.Name+"."+column == t.Name) {
+				if row[idx].Value.Kind() == reflect.Bool {
+					if i := coerceToInt(row[idx].Value); i != nil {
+						return reflect.ValueOf(*i)
+					}
+				}
 
-			if i.Source != nil && i.Source.Name+"."+column == t.Name {
 				return row[idx].Value
 			}
 		}

@@ -30,7 +30,11 @@ func (r *ResultRow) String() string {
 		}
 		switch v.Value.Kind() {
 		case reflect.Bool:
-			s.WriteString(fmt.Sprintf("%t", v.Value.Bool()))
+			var b int
+			if v.Value.Bool() {
+				b = 1
+			}
+			s.WriteString(fmt.Sprintf("%d", b))
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			s.WriteString(fmt.Sprintf("%d", v.Value.Int()))
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:

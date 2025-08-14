@@ -11,6 +11,7 @@ var typeMap = map[string]any{
 	"Account":      &Account{},
 	"Organization": &Organization{},
 	"Transaction":  &Transaction{},
+	"Message":      &Message{},
 }
 
 func TypeByName(name string) any {
@@ -38,6 +39,9 @@ func UnmarshallData(name string, b []byte) (any, error) {
 		return d, json.Unmarshal(b, &d)
 	case "Transaction":
 		var d []*Transaction
+		return d, json.Unmarshal(b, &d)
+	case "Message":
+		var d []*Message
 		return d, json.Unmarshal(b, &d)
 	}
 	return nil, fmt.Errorf("no such data type %q", name)
